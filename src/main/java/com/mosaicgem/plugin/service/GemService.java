@@ -32,13 +32,13 @@ public class GemService {
     private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
     private final ItemFactory factory;
-    private final SxAttributeLoreService attributeLoreService;
+    private final AttributeLoreService attributeLoreService;
 
     public GemService(MosaicGemPlugin plugin, ConfigManager configs, ItemFactory factory) {
         this.plugin = plugin;
         this.configs = configs;
         this.factory = factory;
-        this.attributeLoreService = new SxAttributeLoreService(configs, factory);
+        this.attributeLoreService = new AttributeLoreService(configs, factory);
     }
 
     public record Combo(ToolType toolType, ItemDefinition definition, ItemStack tool, ItemStack target) {
@@ -259,6 +259,7 @@ public class GemService {
             return List.of();
         }
         return definition.getAttribute().stream()
+                .map(ItemFactory::stripLoreIdentifier)
                 .map(line -> factory.resolve(line, values))
                 .map(ItemFactory::colorize)
                 .toList();

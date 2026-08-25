@@ -227,14 +227,13 @@ Placeholders:
 | `{values}` | Gem value description (single line, e.g. `攻击力：20.00、防御力：20.00`) |
 | `{value_lines}` | Gem value description (one attribute per line) |
 
-#### sx-attribute-lore: SX-Attribute panel merging (only for `buffType: sx_attribute`)
+#### attribute-lore: attribute panel merging (independent of gem buffType)
 
-Merges `sx_attribute` gem attributes into the equipment lore; other buffTypes do not use this section.
+Merges gem attributes into the equipment lore: the attribute name comes from each gem's own `LoreChange` mapping (identifier → name), and the value is taken from that attribute line; merged by the "total + bonus" rules (same attributes summed, total + bonus shown). Applies to ALL buffTypes (`sx_attribute` / `vanilla_attribute` / `enchant` / ...).
 
 ```yaml
-sx-attribute-lore:
+attribute-lore:
   enabled: true
-  names: []                          # extra attribute names to recognize (usually empty)
   new-line: '&r&f{name}：&e{value}'  # template for new lines added for gem-only attributes
   bonus-format: '&r（+{bonus}）'     # bonus display format
 ```
@@ -325,9 +324,12 @@ gems:
     random:                      # random values rolled at creation; referenced in lore/attribute
       random_value: '10.00~20.00'
     buffType: 'sx_attribute'     # SX attribute: written to lore, read by SX-Attribute
-    attribute:                   # sx_attribute only: "属性名：数值"
-      - '攻击力：${random_value}'
-      - '防御力：${random_value}'
+    attribute:                   # leading digit is the identifier, matched against LoreChange keys
+      - '1: 攻击力: ${random_value}'
+      - '2: 防御力: ${random_value}'
+    LoreChange:                  # identifier -> attribute name; attributes without mapping do nothing
+      - 1: 攻击力
+      - 2: 防御力
 
   原版测试宝石:
     material: PAPER
@@ -387,7 +389,9 @@ gems:
 - `random` supports multiple random numbers in `min~max` format; decimals follow the configured precision and the value is fixed to the gem instance
 - `gemtype`: gem type tags (a string list, multiple allowed, e.g. `['攻击', '火属性']`). Combined with `settings.gem-type-limit` in `config.yml`, limits how many gems of the same tag can be socketed on one item; empty list (omitted) means the gem does not participate in type counting
 - `remove-destroy-chance`: probability (0-100, percent; default 0 = never destroyed; out-of-range values are clamped) that the gem is destroyed (lost) on removal. **Independent of the remover's success rate**: rolled only after the remover succeeds; on a hit the gem is not returned
-- `sx_attribute`: written to the equipment lore and merged by `sx-attribute-lore` (same attributes summed, total + bonus shown)
+- `attribute`: injected attribute lines. The leading digit is an **identifier** (e.g. `1:`, `2:`); the attribute name comes from the gem's own `LoreChange` section (identifier → name); attributes without a mapping do nothing; the value is taken from the numeric value of the corresponding attribute line
+- `LoreChange`: the attribute-panel-merge mapping, independent of buffType — the `attribute-lore` section reads each gem's mapping and merges the corresponding attribute value into the equipment lore by the "total + bonus" rules (same attributes summed, total + bonus shown); applies to ALL buffTypes
+- `sx_attribute`: written to the equipment lore and read by SX-Attribute
 - `vanilla_attribute`: applied directly as vanilla attribute modifiers (same attributes merge into one modifier; the item's native same-attribute modifiers are merged into the total); lore is **not** modified
 - `enchant`: adds/stacks enchantments (existing → original level + gem level; missing → created; multiple gems summed; native levels stored and restored on removal)
 - `mythicmobs_skill`: attribute lines are MythicMobs skill names (MythicCrucible format `技能名 @触发器` supported); with MythicCrucible installed the Crucible item-skill system triggers them, otherwise melee-attack fallback is used; socket info shows the skill name

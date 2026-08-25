@@ -31,7 +31,8 @@
 #       安装 MythicCrucible 时由其物品技能系统触发（SWING/USE/RIGHTCLICK 等），
 #       未安装时回退到内置的近战攻击触发（仅 onSwing/onAttack 类触发器生效）
 #   attribute: 注入的属性行
-#     sx_attribute 格式：'属性名：数值'（如 '攻击力：${random_value}'）
+#     sx_attribute 格式：'标识符: 属性名: 数值'（如 '1: 攻击力: ${random_value}'）
+#       标识符由宝石自身 LoreChange 映射（如 '- 1: 攻击力'）；无映射的属性不动作
 #     vanilla_attribute 格式：'原版属性id：数值'（如 'minecraft:attack_damage: ${random_value}'）
 #     原版属性 id 的显示名在 messages/<语言>.yml 的 attribute-names 段中配置
 #     enchant 格式：'附魔id：等级'（如 'minecraft:sharpness: ${random_value}' 或 'ce:Wither: 2'）

@@ -25,6 +25,9 @@
     remove-destroy-chance: 0
     buffType: 'sx_attribute'
     attribute:
-      - '攻击力：${random_value}'
-      - '防御力：${random_value}'
+      - '1: 攻击力: ${random_value}'
+      - '2: 防御力: ${random_value}'
+    LoreChange:
+      - 1: 攻击力
+      - 2: 防御力
 

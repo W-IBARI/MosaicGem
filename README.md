@@ -225,14 +225,13 @@ socket-lore:
 | `{values}` | 宝石数值描述（单行合并，如 `攻击力：20.00、防御力：20.00`） |
 | `{value_lines}` | 宝石数值描述（每个属性单独一行） |
 
-#### sx-attribute-lore：SX-Attribute 属性面板合并（仅作用于 `buffType: sx_attribute` 的宝石）
+#### attribute-lore：属性面板合并（与宝石 buff 类型无关）
 
-把 `sx_attribute` 宝石的属性合并进装备 lore 属性行，由 SX-Attribute 读取；其他类型宝石不使用本段配置。
+把宝石的属性合并进装备 lore 属性行：属性名由各宝石配置自己的 `LoreChange` 映射提供（标识符 → 属性名），数值取该属性行中的数值，按「值 + 加成」规则合并（同属性求和、显示总值与加成），与 `buffType` 无关（`sx_attribute` / `vanilla_attribute` / `enchant` 等均适用）。
 
 ```yaml
-sx-attribute-lore:
+attribute-lore:
   enabled: true
-  names: []                          # 额外需要识别的属性名（一般不需要填）
   new-line: '&r&f{name}：&e{value}'  # 宝石独有属性的新增行模版
   bonus-format: '&r（+{bonus}）'     # 加成标注格式
 ```
@@ -324,8 +323,11 @@ gems:
       random_value: '10.00~20.00'
     buffType: 'sx_attribute'
     attribute:
-      - '攻击力：${random_value}'
-      - '防御力：${random_value}'
+      - '1: 攻击力: ${random_value}'   # 行首数字为标识符，与 LoreChange 中的键对应
+      - '2: 防御力: ${random_value}'
+    LoreChange:                        # 标识符 → 属性名映射；无映射的属性不动作
+      - 1: 攻击力
+      - 2: 防御力
 
   原版测试宝石:
     material: PAPER
@@ -385,7 +387,9 @@ gems:
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
 - `gemtype`：宝石类型标签（字符串列表，可多个，如 `['攻击', '火属性']`）。配合 `config.yml` 的 `settings.gem-type-limit` 限制一件装备上同一标签宝石的数量上限；不填则为空列表，不参与类型计数
 - `remove-destroy-chance`：拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（缺省 0 = 永不损毁；越界自动钳制）。**与拆卸器成功率无关**：拆卸器判定成功后仍需独立过此判定，命中则宝石不返还
-- `sx_attribute`：属性行写进装备 lore，参与 `sx-attribute-lore` 面板合并（同属性求和、显示总值与加成）
+- `attribute`：注入的属性行。行首数字为**标识符**（如 `1:`、`2:`），属性由宝石自己的 `LoreChange` 段声明映射（标识符 → 属性名），无映射的属性「不动作」；数值取对应属性行中的数值
+- `LoreChange`：属性面板合并且与 buff 类型无关——`attribute-lore` 段读取各宝石该映射，把对应属性的数值按「值 + 加成」规则合并进装备 lore（同属性求和、显示总值与加成）；`sx_attribute` / `vanilla_attribute` / `enchant` 等均适用
+- `sx_attribute`：属性行写进装备 lore，由 SX-Attribute 读取
 - `vanilla_attribute`：属性行直接附加为原版属性修饰符（同属性多宝石合并为一个修饰符，物品原生同属性修饰符合并进总值），**不会**修改/覆盖装备 lore
 - `enchant`：属性行直接附加/叠加到装备附魔（已存在则原等级 + 宝石等级，不存在则新建；多宝石同类附魔求和；原生附魔等级存物品数据，取下自动还原）
 - `mythicmobs_skill`：属性行是 MythicMobs 技能名（支持 `技能名 @触发器` 的 MythicCrucible 格式）；安装 MythicCrucible 时由其物品技能系统触发，否则回退到近战攻击触发；镶嵌信息直接显示技能名

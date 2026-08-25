@@ -1,6 +1,6 @@
 package com.mosaicgem.plugin.service;
 
-import com.mosaicgem.plugin.config.SxAttributeLoreConfig;
+import com.mosaicgem.plugin.config.AttributeLoreConfig;
 import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.config.GemDefinition;
 import com.mosaicgem.plugin.model.SocketedGem;
@@ -20,12 +20,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * SX-Attribute 属性面板合并：把 sx_attribute 宝石属性合并进物品原有的属性 lore 行，
- * 显示为「总值（+宝石加成）」，并用 §X 标记隔离加成文字，SX 只解析纯数值。
+ * 属性面板合并：把宝石属性合并进物品原有的属性 lore 行，
+ * 显示为「总值（+宝石加成）」，并用 §X 标记隔离加成文字，属性面板只解析纯数值。
+ * 属性的识别名由每个宝石的 {@code LoreChange} 映射提供（标识符 → 属性名）；无映射的属性不动作。
  */
-public class SxAttributeLoreService {
+public class AttributeLoreService {
 
-    /** 合并行标记：SX 解析 §X 之前的内容，标记后的加成文字不影响属性计算 */
+    /** 合并行标记：属性面板解析该标记之前的内容，标记后的加成文字不影响属性计算 */
     public static final String MARKER = ItemFactory.LORE_MARKER;
 
     private static final Pattern NUMBER = Pattern.compile("\\d+(?:\\.\\d+)?");
@@ -34,7 +35,7 @@ public class SxAttributeLoreService {
     private final ConfigManager configs;
     private final ItemFactory factory;
 
-    public SxAttributeLoreService(ConfigManager configs, ItemFactory factory) {
+    public AttributeLoreService(ConfigManager configs, ItemFactory factory) {
         this.configs = configs;
         this.factory = factory;
     }
@@ -46,7 +47,7 @@ public class SxAttributeLoreService {
         if (item == null || item.getType().isAir()) {
             return;
         }
-        SxAttributeLoreConfig cfg = configs.sxAttributeLore();
+        AttributeLoreConfig cfg = configs.attributeLore();
         if (!cfg.enabled()) {
             return;
         }
@@ -56,7 +57,6 @@ public class SxAttributeLoreService {
         Set<String> knownNames = new LinkedHashSet<>();
         knownNames.addAll(baseLines.keySet());
         knownNames.addAll(bonuses.keySet());
-        knownNames.addAll(cfg.names());
 
         List<String> lore = new ArrayList<>();
         if (item.getItemMeta() != null && item.getItemMeta().hasLore()) {
@@ -88,15 +88,18 @@ public class SxAttributeLoreService {
         Map<String, Bonus> bonuses = new LinkedHashMap<>();
         for (SocketedGem gem : gems) {
             GemDefinition definition = configs.getGem(gem.id());
-            if (definition == null || !ItemFactory.BUFF_TYPE_SX.equalsIgnoreCase(definition.getBuffType())) {
+            if (definition == null) {
                 continue;
             }
             for (String attributeLine : definition.getAttribute()) {
-                String name = parseAttributeName(attributeLine);
+                // 属性名由宝石自身的 LoreChange 映射提供：标识符 → 属性名；无映射则不动作
+                String identifier = ItemFactory.loreIdentifier(attributeLine);
+                String name = identifier == null ? null : definition.getLoreChange().get(identifier);
                 if (name == null) {
                     continue;
                 }
-                String resolved = factory.resolve(attributeLine, gem.values());
+                // 标识符本身可能是数字，取值前必须先剥离，避免把标识符当作属性值
+                String resolved = ItemFactory.stripLoreIdentifier(factory.resolve(attributeLine, gem.values()));
                 ParsedNumber parsed = parseFirstNumber(resolved);
                 if (parsed == null) {
                     continue;
@@ -105,15 +108,6 @@ public class SxAttributeLoreService {
             }
         }
         return bonuses;
-    }
-
-    private String parseAttributeName(String line) {
-        String stripped = ItemFactory.stripLoreText(line);
-        int index = stripped.indexOf('：');
-        if (index < 0) {
-            index = stripped.indexOf(':');
-        }
-        return index <= 0 ? null : stripped.substring(0, index).trim();
     }
 
     // ------------------------------------------------------------------
@@ -137,7 +131,7 @@ public class SxAttributeLoreService {
         }
     }
 
-    private void applyBonuses(List<String> lore, Map<String, String> baseLines, Map<String, Bonus> bonuses, SxAttributeLoreConfig cfg) {
+    private void applyBonuses(List<String> lore, Map<String, String> baseLines, Map<String, Bonus> bonuses, AttributeLoreConfig cfg) {
         if (bonuses.isEmpty()) {
             return;
         }

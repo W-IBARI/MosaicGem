@@ -30,7 +30,8 @@ final class SxAttributeHandler implements BuffTypeHandler {
         }
         List<String> result = new ArrayList<>();
         for (String line : definition.getAttribute()) {
-            String text = ItemFactory.stripLoreText(factory.resolve(line, gem.values()));
+            // 标识符是内部标记（LoreChange 映射用），展示前剥离
+            String text = ItemFactory.stripLoreText(ItemFactory.stripLoreIdentifier(factory.resolve(line, gem.values())));
             if (!text.isEmpty()) {
                 result.add(text);
             }

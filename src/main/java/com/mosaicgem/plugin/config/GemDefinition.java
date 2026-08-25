@@ -25,6 +25,7 @@ public class GemDefinition extends ItemDefinition {
      * 空列表表示该宝石没有标签（不参与类型计数）。
      */
     private final List<String> gemType;
+    private final Map<String, String> loreChange;
 
     public GemDefinition(String id, ConfigurationSection section) {
         super(id, section);
@@ -42,6 +43,17 @@ public class GemDefinition extends ItemDefinition {
         this.removeDestroyChance = clampChance(section.getInt("remove-destroy-chance", 0));
         // gemtype：不填则为空列表，不参与类型计数
         this.gemType = section.getStringList("gemtype");
+        this.loreChange = new LinkedHashMap<>();
+        List<Map<?, ?>> loreChangeSection = section.getMapList("LoreChange");
+        if (loreChangeSection != null) {
+            for (Map<?, ?> entry : loreChangeSection) {
+                for (Map.Entry<?, ?> pair : entry.entrySet()) {
+                    if (pair.getKey() != null && pair.getValue() != null) {
+                        loreChange.put(String.valueOf(pair.getKey()).trim(), String.valueOf(pair.getValue()).trim());
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -73,5 +85,13 @@ public class GemDefinition extends ItemDefinition {
 
     public List<String> getGemType() {
         return gemType;
+    }
+
+    /**
+     * 属性行首标识符的 LoreChange 映射（标识符 → 属性名）。
+     * 无映射的属性「不动作」：不参与属性面板合并，也不影响展示。
+     */
+    public Map<String, String> getLoreChange() {
+        return loreChange;
     }
 }

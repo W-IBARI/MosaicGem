@@ -42,14 +42,13 @@ socket-lore:
 # SX-Attribute 属性面板合并（仅作用于 buffType: sx_attribute 的宝石）：
 # 镶嵌后把宝石属性合并进物品原有的属性行
 # 例：物品原行 '攻击力：13.90' + 宝石 20 -> '攻击力：33.90（+20）'
+# 属性名由各宝石配置的 LoreChange 映射提供（标识符 -> 属性名），无映射的属性不动作。
 # 占位符：
 #   {name}  属性名
 #   {value} 属性总值
 #   {bonus} 宝石加成值（自动去掉多余的小数零）
-sx-attribute-lore:
+attribute-lore:
   enabled: true
-  # 额外需要识别的属性名（宝石配置里的 attribute 会自动收集，一般不需要填）
-  names: []
   # 宝石属性在物品上没有对应行时，追加的新属性行模版
   new-line: '&r&f{name}：&e{value}'
   # 加成标注格式（跟在数值后）

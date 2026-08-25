@@ -1112,6 +1112,8 @@ public class ItemFactory {
         if (line == null || line.isBlank()) {
             return null;
         }
+        // 属性行行首若带数字标识符（如 '1: minecraft:attack_damage: xxx'），先剥离再解析
+        line = stripLoreIdentifier(line);
         int index = Math.max(line.lastIndexOf(':'), line.lastIndexOf('：'));
         if (index <= 0) {
             return null;
@@ -1138,6 +1140,46 @@ public class ItemFactory {
         stripped = stripped.replaceAll("\u00A7.", "");
         stripped = stripped.replace("\u200B", "").replace("\u200C", "");
         return stripped.trim();
+    }
+
+    /**
+     * 返回属性行首标识符（第一个「：」或「:」之前的部分并 trim），无标识符返回 null。
+     * 标识符仅用于 {@code LoreChange} 配置映射，不参与展示。
+     */
+    public static String loreIdentifier(String line) {
+        int index = loreSeparatorIndex(line);
+        return index <= 0 ? null : line.substring(0, index).trim();
+    }
+
+    /**
+     * 去掉属性行首标识符前缀（用于展示），仅当首段为纯数字标识符（如 1、2）时剥离；
+     * 非数字前缀（如 minecraft:attack_damage 的命名空间）不剥离，避免误伤含冒号的 id。
+     */
+    public static String stripLoreIdentifier(String line) {
+        int index = loreSeparatorIndex(line);
+        if (index <= 0) {
+            return line;
+        }
+        String prefix = line.substring(0, index).trim();
+        if (prefix.isEmpty() || !prefix.matches("\\d+")) {
+            return line;
+        }
+        return line.substring(index + 1).trim();
+    }
+
+    private static int loreSeparatorIndex(String line) {
+        if (line == null) {
+            return -1;
+        }
+        int wide = line.indexOf('：');
+        int ascii = line.indexOf(':');
+        if (wide < 0) {
+            return ascii;
+        }
+        if (ascii < 0) {
+            return wide;
+        }
+        return Math.min(wide, ascii);
     }
 
     // ------------------------------------------------------------------
