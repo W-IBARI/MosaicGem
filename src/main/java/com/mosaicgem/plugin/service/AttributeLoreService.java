@@ -7,7 +7,6 @@ import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.util.ItemFactory;
 import org.bukkit.inventory.ItemStack;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -142,6 +141,7 @@ public class AttributeLoreService {
             if (bonus.value() <= 0) {
                 continue;
             }
+            AttributeLoreConfig.DisplayFormat display = displayOf(cfg, name);
 
             int index = findAttributeLine(lore, name);
             if (index >= 0) {
@@ -150,35 +150,46 @@ public class AttributeLoreService {
                 baseLines.putIfAbsent(name, current);
                 ParsedNumber parsed = parseFirstNumber(original);
                 if (parsed != null) {
-                    lore.set(index, buildMerged(original, parsed, bonus, cfg.bonusFormat()));
+                    lore.set(index, buildMerged(original, parsed, bonus, cfg, display));
                 }
             } else {
-                String valueText = formatNumber(bonus.value(), 2);
+                String valueText = formatNumber(bonus.value() * display.factor(), display.decimals())
+                        + display.unit();
                 String line = cfg.newLine()
                         .replace("{name}", name)
                         .replace("{value}", valueText)
                         + MARKER
-                        + cfg.bonusFormat().replace("{bonus}", formatBonus(bonus));
+                        + cfg.bonusFormat().replace("{bonus}", formatBonus(bonus, display));
                 append.add(line);
             }
         }
         lore.addAll(append);
     }
 
-    private String buildMerged(String original, ParsedNumber parsed, Bonus bonus, String bonusFormat) {
-        String unit = parsed.unit();
-        double bonusValue = bonus.value();
+    private AttributeLoreConfig.DisplayFormat displayOf(AttributeLoreConfig cfg, String name) {
+        AttributeLoreConfig.DisplayFormat format = cfg.display().get(name);
+        if (format != null) {
+            return format;
+        }
+        return new AttributeLoreConfig.DisplayFormat(1, "", configs.valueDecimalPlaces());
+    }
+
+    private String buildMerged(String original, ParsedNumber parsed, Bonus bonus, AttributeLoreConfig cfg,
+                               AttributeLoreConfig.DisplayFormat display) {
+        double bonusValue = bonus.value() * display.factor();
+        String unit = parsed.unit().isEmpty() ? display.unit() : parsed.unit();
+        int decimals = display.decimals();
         StringBuilder builder = new StringBuilder(parsed.prefix());
         if (parsed.hasRange()) {
-            builder.append(formatNumber(parsed.value() + bonusValue, parsed.decimals()))
+            builder.append(formatNumber(parsed.value() + bonusValue, decimals))
                     .append('-')
-                    .append(formatNumber(parsed.secondValue() + bonusValue, parsed.decimals()));
+                    .append(formatNumber(parsed.secondValue() + bonusValue, decimals));
         } else {
-            builder.append(formatNumber(parsed.value() + bonusValue, parsed.decimals()));
+            builder.append(formatNumber(parsed.value() + bonusValue, decimals));
         }
         builder.append(unit);
         builder.append(MARKER);
-        builder.append(bonusFormat.replace("{bonus}", formatBonus(bonus) + unit));
+        builder.append(cfg.bonusFormat().replace("{bonus}", formatBonus(bonus, display) + unit));
         return builder.toString();
     }
 
@@ -249,13 +260,10 @@ public class AttributeLoreService {
     }
 
     /**
-     * 单颗宝石生效时去掉多余小数零；多颗宝石生效时取小数位最多的宝石的位数。
+     * 加成显示：按属性显示格式的小数位输出（不同属性可配置不同位数/缩放）。
      */
-    private String formatBonus(Bonus bonus) {
-        if (bonus.count() <= 1) {
-            return BigDecimal.valueOf(bonus.value()).stripTrailingZeros().toPlainString();
-        }
-        return String.format(Locale.ROOT, "%." + bonus.decimals() + "f", bonus.value());
+    private String formatBonus(Bonus bonus, AttributeLoreConfig.DisplayFormat display) {
+        return formatNumber(bonus.value() * display.factor(), display.decimals());
     }
 
     private record ParsedNumber(

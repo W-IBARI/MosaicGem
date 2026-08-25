@@ -46,6 +46,15 @@ public class ConfigManager {
         this.plugin = plugin;
     }
 
+    /**
+     * 数值显示的小数位数（settings.value-decimal-places），用于表达式占位符结果
+     * 与属性面板合并/加成的显示。缺省 2，范围 0~10。
+     */
+    public int valueDecimalPlaces() {
+        return Math.max(0, Math.min(10,
+                config.getInt("settings.value-decimal-places", 2)));
+    }
+
     public void load() {
         config = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "config.yml"));
         permissions = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "permissions.yml"));

@@ -8,6 +8,7 @@ softdepend:
   - CrazyEnchantments
   - MythicMobs
   - MythicCrucible
+  - CraftEngine
 authors:
   - MosaicGem
 description: 宝石镶嵌插件（打孔 / 镶嵌 / 拆卸），支持 SX-Attribute

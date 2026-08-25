@@ -17,6 +17,9 @@ settings:
     crafting: true
     # 拖拽工具到目标物品上
     drag: true
+  # 数值显示的小数位数：表达式占位符结果（如 ${crit*100,0} 的默认位数）
+  # 与属性面板合并/加成的显示位数。0~10，缺省 2。
+  value-decimal-places: 2
 
 # 装备上的镶嵌信息 lore（打孔/镶嵌/拆卸成功后自动更新）
 # 占位符：
@@ -53,3 +56,17 @@ attribute-lore:
   new-line: '&r&f{name}：&e{value}'
   # 加成标注格式（跟在数值后）
   bonus-format: '&r（+{bonus}）'
+  # 按属性名（LoreChange 提供的名称）的数值显示格式：
+  #   factor    数值缩放（如比率转百分比用 100；缺省 1）
+  #   unit      数值后缀（如 %；缺省为空）
+  #   decimals  显示小数位（0~10；缺省 2，0 = 整数）
+  # 作用于合并显示与镶嵌信息的数值展示；未配置的属性原样按 settings.value-decimal-places 显示。
+  display:
+    暴击率:
+      factor: 100
+      unit: '%'
+      decimals: 2
+    暴击伤害:
+      factor: 100
+      unit: '%'
+      decimals: 2

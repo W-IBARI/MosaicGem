@@ -11,7 +11,7 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
 ## Features
 
 - **Equipment punching**: use a puncher to add sockets to equipment; success rate and two-dimensional socket limits are configurable
-- **Gem socketing**: gems carry random values. `sx_attribute` gems merge into the equipment attribute panel and are read by SX-Attribute; `vanilla_attribute` gems apply directly as vanilla attribute modifiers; `enchant` gems add/stack vanilla enchantments; `mythicmobs_skill` gems cast MythicMobs skills on the configured trigger (swing by default)
+- **Gem socketing**: gems carry random values. `sx_attribute` gems merge into the equipment attribute panel and are read by SX-Attribute; `vanilla_attribute` gems apply directly as vanilla attribute modifiers; `ce_attribute` gems write CraftEngine custom-attribute persistent item modifiers (CE 26.8+); `enchant` gems add/stack vanilla enchantments; `mythicmobs_skill` gems cast MythicMobs skills on the configured trigger (swing by default)
 - **Gem removal**: removed gems are returned with their original random values, and the equipment attribute panel is restored automatically; each gem can set its own `remove-destroy-chance` (0-100%) — independent of the remover's success rate, rolled after a successful removal, and on a hit the gem is destroyed and not returned
 - **Attribute panel merging**: an existing `攻击力：13.90` line plus a +20 gem becomes `攻击力：33.90（+20）`; attributes that only exist on the gem are appended as new lines
 - **Three interaction methods**: anvil, crafting (2x2 inventory or workbench), and dragging a tool onto the target item — each can be toggled independently
@@ -23,7 +23,7 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
 
 - Server: Folia 26.x (26.1+, Java Edition 26.1+)
 - Java: JDK 25+
-- Optional dependencies: [SX-Attribute-Folia (26.2 optimized build)](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) (required for `sx_attribute` gems, plus its dependency [SX-Item](https://github.com/Saukiya/SX-Item)); [CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/) (required for `ce:` custom enchants); [MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs) (required for `mythicmobs_skill` gems and gem drops); [MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) (optional, enables multiple skill triggers for `mythicmobs_skill` gems)
+- Optional dependencies: [SX-Attribute-Folia (26.2 optimized build)](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) (required for `sx_attribute` gems, plus its dependency [SX-Item](https://github.com/Saukiya/SX-Item)); [CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/) (required for `ce:` custom enchants); [MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs) (required for `mythicmobs_skill` gems and gem drops); [MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) (optional, enables multiple skill triggers for `mythicmobs_skill` gems); [CraftEngine](https://github.com/Xiao-MoMi/craft-engine) 26.8+ (required for `ce_attribute` gems, writes into CE custom attributes)
 
 > The original SX-Attribute repository does not support 26.2 yet, so MosaicGem recommends the [26.2 optimized build](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) provided by W-IBARI/SX-Attribute-Folia-fixed.
 >
@@ -55,7 +55,7 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
 - Gems roll random values at creation time from `random` and keep them for that instance; each gem in a bulk give is independent
 - The same gem can be socketed multiple times according to `repetitions` (unlimited if omitted)
 - Gems can set `gemtype` type tags (a string list, multiple allowed); combined with `settings.gem-type-limit` in `config.yml`, it limits how many gems of the same `gemtype` tag can be socketed on one item (e.g. `攻击: 2` = at most 2 gems tagged "攻击" per item). Tags without a configured limit, or gems without `gemtype`, are not limited
-- `buffType` supports `sx_attribute` (lore read by SX-Attribute), `vanilla_attribute` (vanilla attribute modifiers), `enchant` (add/stack enchantments) and `mythicmobs_skill` (cast MythicMobs skills on the configured trigger, swing by default); other types are blocked with a message
+- `buffType` supports `sx_attribute` (lore read by SX-Attribute), `vanilla_attribute` (vanilla attribute modifiers), `ce_attribute` (CraftEngine custom-attribute persistent item modifiers, CE 26.8+), `enchant` (add/stack enchantments) and `mythicmobs_skill` (cast MythicMobs skills on the configured trigger, swing by default); other types are blocked with a message
 - `sx_attribute` merging rules:
   - The item's existing attribute line and all gems of the same attribute are summed and shown as `total（+bonus）`, e.g. `攻击力：33.90（+20）`
   - Attributes that only exist on gems are appended as new lines
@@ -65,6 +65,11 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
   - Multiple gems of the same attribute merge into one AttributeModifier; the tooltip shows a single total (e.g. two gems totaling +11 → `装备时：攻击力 +11`)
   - The item's existing ADD_NUMBER modifiers of the same attribute are merged into the total and shown as an increase over the original value
   - Merged native modifiers are stored in the item data and restored automatically when gems are removed
+- `ce_attribute` merging rules (CraftEngine 26.8+):
+  - Attribute lines use `CE attribute id: value` (e.g. `bakamc:strength: ${random_value}`); values support `random` rolls
+  - Each gem attribute is written as one persistent CE item modifier (`craftengine:attribute_modifiers`), attached to the item only (scope fixed `weapon`: melee reads main hand, arrows read the weapon at firing time)
+  - Same-attribute gems sum via add_value and merge with the weapon's own words inside CE's attribute pipeline; on removal, modifiers are rebuilt from the remaining gems
+  - Requires CraftEngine 26.8+; without it the socketing still works but the attributes won't take effect
 - `enchant` stacking rules:
   - If the target already has the enchant, the final level = original level + gem total (e.g. `锋利 III` + +2 → `锋利 V`); otherwise the enchant is created at the gem level
   - Multiple gems of the same enchant are summed and written once
@@ -109,7 +114,7 @@ Drops:
 
 - Interact with a remover on equipment that has socketed gems; success removes the last socketed gem
 - The gem is returned with its original random values (inventory first, dropped on the ground if the inventory is full)
-- The attribute panel is restored: `sx_attribute` lines return to their original values and gem-only lines are removed; `vanilla_attribute` modifiers are rebuilt from the remaining gems and merged natives are restored; `enchant` levels are rebuilt and native levels restored
+- The attribute panel is restored: `sx_attribute` lines return to their original values and gem-only lines are removed; `vanilla_attribute` modifiers are rebuilt from the remaining gems and merged natives are restored; `ce_attribute` modifiers are rebuilt from the remaining gems (CE persistent item modifiers); `enchant` levels are rebuilt and native levels restored
 - Failure consumes one remover; the equipment and remaining gems are unaffected
 - **Gem destroy check**: each gem can set `remove-destroy-chance` (0-100, percent, default 0). This check is **independent of the remover's success rate** — it is rolled only after the remover succeeds; on a hit the gem is destroyed (lost, not returned) while the equipment is restored normally and the player sees the `remove-destroyed` message; on a miss the gem is returned normally
 
@@ -242,6 +247,41 @@ Placeholders: `{name}` attribute name, `{value}` total value, `{bonus}` gem bonu
 
 > Templates use `&r` (regular text) by default. Colors can use `&`, `§x` hex codes, or `<#RRGGBB>`; `<#RRGGBB>` is parsed into a real color, e.g. `&r<#FFAA00>（<#1EFF5C>+{bonus}<#FFAA00>）`.
 
+The `display` sub-section configures per-attribute display formats (keyed by the `LoreChange` attribute name) for both the panel merge and socket info:
+
+```yaml
+attribute-lore:
+  enabled: true
+  new-line: '&r&f{name}：&e{value}'
+  bonus-format: '&r（+{bonus}）'
+  display:                      # per-attribute display format (optional)
+    暴击率:                      # key = attribute name from LoreChange
+      factor: 100               # scale (e.g. ratio→percent; default 1)
+      unit: '%'                 # suffix (default empty)
+      decimals: 2               # display decimals (0~10; default 2, 0 = integer)
+    暴击伤害:
+      factor: 100
+      unit: '%'
+      decimals: 2
+```
+
+> Merge rule: total = original line value + gem value × `factor`; the bonus is scaled the same way (e.g. `暴击率：19%（+19%）`).
+> Attributes without a `display` entry use `settings.value-decimal-places`.
+
+#### Numeric placeholder expressions (1.1.1+, all `${...}` placeholders)
+
+Expressions are supported everywhere `${...}` placeholders are used (gem lore, `attribute` value lines, socket info...):
+
+| Form | Description | Example (crit=0.1543) |
+| --- | --- | --- |
+| `${key}` | raw random value (original behavior) | `${crit}` → `0.1543` |
+| `${expression}` | evaluated, displayed with `settings.value-decimal-places` decimals | `${crit*100}` → `15.43` |
+| `${expression,N}` | evaluated, forced N decimals | `${crit*100,0}` → `15` |
+
+Supported: `+ - * / % ^`, parentheses, and functions `ROUND(x[,n]) / FLOOR / CEIL / ABS / MIN / MAX / SQRT / LOG`; variables are the gem `random` keys. Failed expressions keep the raw placeholder text.
+
+`settings.value-decimal-places` (0~10, default 2) is the default display precision for expression results.
+
 ### Language message files
 
 Player messages are split per language: `settings.language` in `config.yml` selects the file under `messages/` (e.g. `zh_cn` → `messages/zh_cn.yml`). `{xxx}` are placeholders. Built-in languages:
@@ -253,7 +293,7 @@ Language values are case-insensitive and treat `-` and `_` as equal (e.g. `en-US
 
 The language files also contain two name mapping sections:
 
-- `attribute-names`: maps vanilla attribute ids (e.g. `minecraft:attack_damage`) to display names (e.g. `攻击力`) for `vanilla_attribute` gems
+- `attribute-names`: maps attribute ids (e.g. `minecraft:attack_damage`, `bakamc:strength`) to display names (e.g. `攻击力`, `力量`) for `vanilla_attribute` and `ce_attribute` gems
 - `enchant-names`: maps enchant ids (e.g. `minecraft:sharpness` → `锋利`, `ce:Wither` → `凋灵`) for `enchant` gems; if missing, vanilla enchants fall back to the raw id and CrazyEnchantments enchants fall back to their CustomName
 
 | Message key | Scenario |
@@ -299,8 +339,9 @@ removers:
 On first startup, `items/gems.yml` is generated (using a `gems:` section) according to the installed soft dependencies, so unused sample gems are not shown:
 
 - Always generated: `原版测试宝石` (`vanilla_attribute`), `附魔测试宝石` (`enchant`)
-- With SX-Attribute installed: `SA测试宝石` (`sx_attribute`) is also generated
-- With MythicMobs installed: `MM技能测试宝石` (`mythicmobs_skill`) is also generated
+- With SX-Attribute installed: also `SA测试宝石` (`sx_attribute`)
+- With MythicMobs installed: also `MM技能测试宝石` (`mythicmobs_skill`)
+- With CraftEngine installed: also `CE测试宝石` (`ce_attribute`)
 
 **Generation rule**: if **any** `.yml` file already exists under `items/` (including subdirectories) — valid or not — no default item config files (`gems.yml` / `punchers.yml` / `removers.yml`) are generated at all, so custom config is never overwritten. After installing a new soft dependency, delete those default files and run `/mosaicgem reload` to regenerate them. The full example below shows the file when every soft dependency is installed:
 
@@ -393,9 +434,10 @@ gems:
 - `LoreChange`: the attribute-panel-merge mapping, independent of buffType — the `attribute-lore` section reads each gem's mapping and merges the corresponding attribute value into the equipment lore by the "total + bonus" rules (same attributes summed, total + bonus shown); applies to ALL buffTypes
 - `sx_attribute`: written to the equipment lore and read by SX-Attribute
 - `vanilla_attribute`: applied directly as vanilla attribute modifiers (same attributes merge into one modifier; the item's native same-attribute modifiers are merged into the total); lore is **not** modified
+- `ce_attribute`: written as CraftEngine persistent item modifiers (`craftengine:attribute_modifiers`), format `CE attribute id: value` (e.g. `bakamc:strength: ${random_value}`); scope fixed to `weapon` (item-only, attack-time settlement); same-attribute gems sum via add_value and merge with the weapon's own words; requires CraftEngine 26.8+
 - `enchant`: adds/stacks enchantments (existing → original level + gem level; missing → created; multiple gems summed; native levels stored and restored on removal)
 - `mythicmobs_skill`: attribute lines are MythicMobs skill names (MythicCrucible format `技能名 @触发器` supported); with MythicCrucible installed the Crucible item-skill system triggers them, otherwise melee-attack fallback is used; socket info shows the skill name
-- Vanilla attribute display names come from `attribute-names`; enchant display names from `enchant-names` (raw id fallback, or CrazyEnchantments CustomName for `ce:` enchants)
+- Vanilla attribute display names come from `attribute-names` (also used for `ce_attribute` ids like `bakamc:strength`); enchant display names from `enchant-names` (raw id fallback, or CrazyEnchantments CustomName for `ce:` enchants)
 - CrazyEnchantments custom enchants: `ce:附魔名: 等级` (e.g. `ce:Wither: 2`), requires CrazyEnchantments; vanilla enchants: `minecraft:sharpness: 等级`, bare ids (e.g. `sharpness`) get the `minecraft:` prefix automatically
 - `targetMaterial` and `targetType` are ANDed when both are set
 - Supported equipment types: `SWORD`, `SPEAR`, `TRIDENT`, `AXE`, `HOE`, `SHOVEL`, `PICKAXE`, `BOW`, `CROSSBOW`, `MACE`, `SHIELD`, `HELMET`, `CHESTPLATE`, `LEGGINGS`, `BOOTS`, `ELYTRA`
@@ -478,6 +520,10 @@ Make sure MythicMobs is installed and loads before MosaicGem (declared as a soft
 **Q: `mythicmobs_skill` gems are not casting?**
 
 Make sure the gem uses `buffType: mythicmobs_skill`, the skill name in `attribute` matches a skill configured in MythicMobs exactly, and the item is socketed; with MythicCrucible installed, triggers follow the `@<trigger>` field (default `@onSwing`); without it, only melee attacks trigger (`@onSwing` / `@onAttack` / `@onHit`). Cooldowns, conditions, and target selection are handled by MythicMobs.
+
+**Q: `ce_attribute` gems don't work?**
+
+Make sure CraftEngine 26.8+ is installed and enabled (the startup log should show "CraftEngine 属性桥接已启用"), the gem uses `buffType: ce_attribute`, and the CE attribute id in `attribute` (e.g. `bakamc:strength`) is defined in CraftEngine's `attributes` configuration. Socketed gems persist their words with the item; the CE attribute pipeline picks them up when the item is worn (scope=weapon: shown in socket info and lore, not in the entity panel).
 
 **Q: How do I debug configuration issues?**
 

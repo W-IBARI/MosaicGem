@@ -123,6 +123,12 @@ attribute-names:
   'minecraft:explosion_knockback_resistance': Explosion Knockback Resistance
   'minecraft:step_height': Step Height
   'minecraft:scale': Scale
+  # CraftEngine custom attributes (ce_attribute gems)
+  'bakamc:attack_damage': Attack Damage
+  'bakamc:strength': Strength
+  'bakamc:magic_power': Magic Power
+  'bakamc:physical_defense': Physical Defense
+  'bakamc:magic_defense': Magic Defense
 
 # Enchant id -> display name mapping (used in socket lore for enchant gems)
 # Vanilla enchants use the minecraft: prefix; CrazyEnchantments use the ce: prefix (e.g. ce:Wither)

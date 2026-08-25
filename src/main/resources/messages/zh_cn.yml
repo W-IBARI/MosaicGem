@@ -123,6 +123,12 @@ attribute-names:
   'minecraft:explosion_knockback_resistance': 爆炸击退抗性
   'minecraft:step_height': 步高
   'minecraft:scale': 体型比例
+  # CraftEngine 自定义属性（ce_attribute 宝石使用）
+  'bakamc:attack_damage': 武器攻击伤害
+  'bakamc:strength': 力量
+  'bakamc:magic_power': 魔力
+  'bakamc:physical_defense': 物防
+  'bakamc:magic_defense': 魔防
 
 # 附魔 id -> 显示名映射（enchant 宝石镶嵌后，镶嵌信息 lore 用这里的中文名显示）
 # 原版附魔使用 minecraft: 前缀，CrazyEnchantments 自定义附魔使用 ce: 前缀（如 ce:Wither）

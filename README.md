@@ -11,7 +11,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 ## 功能特性
 
 - **装备打孔**：使用打孔器为装备添加孔位，成功率与双维度孔数上限可配置
-- **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`enchant` 宝石直接附加/叠加到装备的附魔；`mythicmobs_skill` 宝石按配置的触发器（默认挥动）发动 MythicMobs 技能
+- **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`ce_attribute` 宝石作为 CraftEngine 自定义属性持久词条写入 CE 物品数据（CE 26.8+）；`enchant` 宝石直接附加/叠加到装备的附魔；`mythicmobs_skill` 宝石按配置的触发器（默认挥动）发动 MythicMobs 技能
 - **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原；每颗宝石可独立配置 `remove-destroy-chance` 拆卸损毁概率（0-100%），与拆卸器成功率无关，拆卸成功后再独立判定，命中则宝石损毁不返还
 - **属性面板合并**：物品原有 `攻击力：13.90` + 宝石 +20 → `攻击力：33.90（+20）`，宝石独有的属性自动新增行
 - **三种交互方式**：铁砧合成、工作台/随身合成、拖拽工具到目标物品，均可独立开关
@@ -23,7 +23,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 - 服务端：Folia 26.x（26.1 及以上，Java Edition 26.1+）
 - Java：JDK 25+
-- 可选依赖：[SX-Attribute-Folia（26.2 优化构建版）](https://github.com/W-IBARI/SX-Attribute-Folia-fixed)（`sx_attribute` 宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）；[MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs)（`mythicmobs_skill` 宝石与怪物掉落宝石需要）；[MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible)（`mythicmobs_skill` 宝石的多触发器支持需要，可选）
+- 可选依赖：[SX-Attribute-Folia（26.2 优化构建版）](https://github.com/W-IBARI/SX-Attribute-Folia-fixed)（`sx_attribute` 宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）；[MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs)（`mythicmobs_skill` 宝石与怪物掉落宝石需要）；[MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible)（`mythicmobs_skill` 宝石的多触发器支持需要，可选）；[CraftEngine](https://github.com/Xiao-MoMi/craft-engine) 26.8+（`ce_attribute` 宝石需要，可将属性写入 CE 自定义属性）
 
 > 说明：原版 SX-Attribute 仓库尚未适配 26.2，因此 MosaicGem 推荐使用 [W-IBARI/SX-Attribute-Folia-fixed](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) 提供的 26.2 优化构建版。
 >
@@ -33,7 +33,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 1. 构建插件（见下文「构建」），或使用已发布的 jar
 2. 将 `MosaicGem-*.jar` 放入服务端 `plugins` 目录
-3. 如需 `sx_attribute` 宝石属性生效，同时放入 `SX-Item` 与 `SX-Attribute`（26.2 优化构建版）的 jar
+3. 如需 `sx_attribute` 宝石属性生效，同时放入 `SX-Item` 与 `SX-Attribute`（26.2 优化构建版）的 jar；如需 `ce_attribute` 宝石，同时放入 CraftEngine（26.8+）的 jar
 4. 启动服务端，插件会自动生成 `config.yml`、`messages/zh_cn.yml`、`messages/en_us.yml`、`items/gems.yml`、`items/punchers.yml`、`items/removers.yml`
 5. 按需修改配置后执行 `/mosaicgem reload`
 
@@ -55,7 +55,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 - 宝石生成时，按照配置的值生成，同时支持随机数配置：按 `random` 配置随机取值并固定到该宝石实例；批量发放时每颗宝石随机值独立
 - 同一种宝石可按 `repetitions` 限制重复镶嵌次数（不填为无上限）
 - 宝石可配置 `gemtype` 类型标签（字符串列表，可多个），配合 `config.yml` 的 `settings.gem-type-limit` 全局限制：一件装备上同一 `gemtype` 标签的宝石数量不得超过上限（如 `攻击: 2` 表示带"攻击"标签的宝石一件装备最多 2 颗）；标签未配置上限或 `gemtype` 缺省时不限制
-- `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（按配置的触发器发动 MythicMobs 技能，默认挥动），其他类型会拦截镶嵌并提示
+- `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`ce_attribute`（写入 CraftEngine 自定义属性持久词条，CE 26.8+）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（按配置的触发器发动 MythicMobs 技能，默认挥动），其他类型会拦截镶嵌并提示
 - `sx_attribute` 属性面板合并规则：
   - 物品原有属性行与所有宝石同类数值求和，显示为 `总值（+加成）`，如 `攻击力：33.90（+20）`
   - 宝石独有的属性自动追加新属性行
@@ -65,6 +65,11 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
   - 同属性的多颗宝石会合并为一个 AttributeModifier，tooltip 只显示一行总值（如两颗合计 +11 → `装备时：攻击力 +11`）
   - 物品原有的同属性 ADD_NUMBER 修饰符会一并合并进总值，显示在“原值上增加”
   - 被合并的原生修饰符会存入物品数据，宝石取下后自动还原
+- `ce_attribute` CraftEngine 属性合并规则：
+  - 属性行格式为 `CE 属性 id: 数值`（如 `bakamc:strength: ${random_value}`），数值支持 `random` 随机值
+  - 每颗宝石的每条属性写入一条 CE 物品持久词条（`craftengine:attribute_modifiers`），挂在物品上、不作用于实体（scope 固定 `weapon`，近战读主手、箭矢读发射时武器）
+  - 同属性多颗宝石按 add_value 自动求和，与武器自身词条在 CE 属性运算管线中合并；拆卸后按剩余宝石重建
+  - 需要 CraftEngine 26.8+；未安装时该类型宝石与 vanilla 一样正常工作在「物品数据」层，但属性不会生效
 - `enchant` 附魔合并规则：
   - 目标装备已有该附魔时，最终等级 = 原等级 + 宝石合计（如原 `锋利 III` + 宝石 +2 → `锋利 V`）；没有则按宝石等级新建附魔
   - 多颗附魔宝石的同类附魔等级求和后一次性写入
@@ -109,7 +114,7 @@ Drops:
 
 - 拆卸器与已镶嵌宝石的装备交互，成功后移除最后一个镶嵌的宝石
 - 宝石按原始随机数值原样返还（优先进背包，背包满则掉落脚边）
-- 装备属性面板自动还原：`sx_attribute` 原有属性行恢复原始数值、宝石新增行整行移除；`vanilla_attribute` 修饰符按剩余宝石重建，被合并的原生修饰符自动还原；`enchant` 附魔按剩余宝石重建，原生附魔等级自动还原
+- 装备属性面板自动还原：`sx_attribute` 原有属性行恢复原始数值、宝石新增行整行移除；`vanilla_attribute` 修饰符按剩余宝石重建，被合并的原生修饰符自动还原；`ce_attribute` 词条按剩余宝石重建（CE 物品持久词条）；`enchant` 附魔按剩余宝石重建，原生附魔等级自动还原
 - 失败时拆卸器消耗 1 个，装备与剩余宝石不受影响
 - **宝石损毁判定**：每颗宝石可配置 `remove-destroy-chance`（0-100，百分比，缺省 0）。该判定**与拆卸器成功率无关**——拆卸器判定成功后才独立进行；命中时宝石损毁（消失、不返还），装备正常还原，玩家收到 `remove-destroyed` 提示；未命中则正常返还
 
@@ -240,6 +245,41 @@ attribute-lore:
 
 > 默认模板均带 `&r`（正体）。如需自定义颜色，可直接在模板中加入颜色代码（`&`、`§x` 十六进制或 `<#RRGGBB>`），`<#RRGGBB>` 会被解析为真实颜色，例如 `&r<#FFAA00>（<#1EFF5C>+{bonus}<#FFAA00>）`。
 
+`display` 段支持按属性名（`LoreChange` 提供的名称）配置数值显示格式，作用于属性面板合并与镶嵌信息的数值展示：
+
+```yaml
+attribute-lore:
+  enabled: true
+  new-line: '&r&f{name}：&e{value}'
+  bonus-format: '&r（+{bonus}）'
+  display:                      # 按属性名的显示格式（可选）
+    暴击率:                      # 键 = LoreChange 中的属性名
+      factor: 100               # 原始数值缩放（比率转百分比用 100；缺省 1）
+      unit: '%'                 # 显示后缀（缺省为空）
+      decimals: 2               # 显示小数位（0~10；缺省 2，0 = 整数）
+    暴击伤害:
+      factor: 100
+      unit: '%'
+      decimals: 2
+```
+
+> 合并规则：总值 = 原行数值 + 宝石数值 × `factor`，加成同样按 `factor` 缩放显示（如 `暴击率：19%（+19%）`）。
+> 未在 `display` 配置的属性按 `settings.value-decimal-places` 位数显示。
+
+#### 数值占位符表达式（1.1.1+，所有 `${...}` 占位处生效）
+
+宝石 lore、`attribute` 数值行、镶嵌信息等所有使用 `${...}` 占位符的地方，都支持表达式运算：
+
+| 写法 | 说明 | 示例（crit=0.1543） |
+| --- | --- | --- |
+| `${key}` | 直接替换随机值（原行为） | `${crit}` → `0.1543` |
+| `${表达式}` | 求值后按 `settings.value-decimal-places` 位小数显示 | `${crit*100}` → `15.43` |
+| `${表达式,N}` | 求值后强制 N 位小数 | `${crit*100,0}` → `15` |
+
+表达式支持 `+ - * / % ^`、括号，以及函数 `ROUND(x[,n]) / FLOOR / CEIL / ABS / MIN / MAX / SQRT / LOG`；变量为宝石 `random` 中的键。求值失败保留原占位符文本，不影响其他内容。
+
+`settings.value-decimal-places`（0~10，缺省 2）为表达式结果的默认显示小数位。
+
 ### 多语言消息文件
 
 所有玩家消息按语言拆分：`config.yml` 的 `settings.language` 决定加载 `messages/` 目录下的哪个文件（如 `zh_cn` 对应 `messages/zh_cn.yml`），`{xxx}` 为占位符。内置语言：
@@ -251,7 +291,7 @@ attribute-lore:
 
 语言文件里还有两段名称映射表：
 
-- `attribute-names`：把原版属性 id（如 `minecraft:attack_damage`）映射成玩家可见的显示名（如 `攻击力`），`vanilla_attribute` 宝石的镶嵌信息 lore 使用
+- `attribute-names`：把属性 id 映射成玩家可见的显示名（如 `minecraft:attack_damage` → `攻击力`、`bakamc:strength` → `力量`），`vanilla_attribute` 与 `ce_attribute` 宝石的镶嵌信息 lore 使用
 - `enchant-names`：把附魔 id（如 `minecraft:sharpness` → `锋利`、`ce:Wither` → `凋灵`）映射成玩家可见的显示名，`enchant` 宝石的镶嵌信息 lore 使用；未配置时原版附魔回退显示原始 id，CrazyEnchantments 附魔回退显示其 CustomName
 
 | 消息键 | 场景 |
@@ -299,6 +339,7 @@ removers:
 - 始终生成：`原版测试宝石`（`vanilla_attribute`）、`附魔测试宝石`（`enchant`）
 - 已安装 SX-Attribute：额外生成 `SA测试宝石`（`sx_attribute`）
 - 已安装 MythicMobs：额外生成 `MM技能测试宝石`（`mythicmobs_skill`）
+- 已安装 CraftEngine：额外生成 `CE测试宝石`（`ce_attribute`）
 
 **生成规则**：只要 `items/` 目录（含子目录）下已存在**任何** `.yml` 文件（无论内容是否合法），都不再生成任何默认物品配置文件（`gems.yml` / `punchers.yml` / `removers.yml`），避免覆盖自定义配置；之后新安装软依赖时，删除这些默认文件并执行 `/mosaicgem reload` 即可重新生成。以下是所有软依赖齐全时的生成示例：
 
@@ -391,9 +432,10 @@ gems:
 - `LoreChange`：属性面板合并且与 buff 类型无关——`attribute-lore` 段读取各宝石该映射，把对应属性的数值按「值 + 加成」规则合并进装备 lore（同属性求和、显示总值与加成）；`sx_attribute` / `vanilla_attribute` / `enchant` 等均适用
 - `sx_attribute`：属性行写进装备 lore，由 SX-Attribute 读取
 - `vanilla_attribute`：属性行直接附加为原版属性修饰符（同属性多宝石合并为一个修饰符，物品原生同属性修饰符合并进总值），**不会**修改/覆盖装备 lore
+- `ce_attribute`：属性行写入 CraftEngine 物品持久词条（`craftengine:attribute_modifiers`），格式 `CE 属性 id: 数值`（如 `bakamc:strength: ${random_value}`）；词条固定 scope=weapon，只挂物品、只随攻击结算；同属性多宝石按 add_value 求和，与武器自身词条在 CE 属性管线合并；需要 CraftEngine 26.8+
 - `enchant`：属性行直接附加/叠加到装备附魔（已存在则原等级 + 宝石等级，不存在则新建；多宝石同类附魔求和；原生附魔等级存物品数据，取下自动还原）
 - `mythicmobs_skill`：属性行是 MythicMobs 技能名（支持 `技能名 @触发器` 的 MythicCrucible 格式）；安装 MythicCrucible 时由其物品技能系统触发，否则回退到近战攻击触发；镶嵌信息直接显示技能名
-- 原版属性 id 的显示名在语言文件 `attribute-names` 段配置；附魔 id 的显示名在 `enchant-names` 段配置，未配置时显示原始 id（CrazyEnchantments 附魔回退显示其 CustomName）
+- 原版属性 id 的显示名在语言文件 `attribute-names` 段配置（`ce_attribute` 属性 id 同样在 `attribute-names` 段配置，如 `bakamc:strength` → `力量`）；附魔 id 的显示名在 `enchant-names` 段配置，未配置时显示原始 id（CrazyEnchantments 附魔回退显示其 CustomName）
 - CrazyEnchantments 自定义附魔格式：`ce:附魔名: 等级`（如 `ce:Wither: 2`），需要服务器已安装 CrazyEnchantments；原版附魔格式：`minecraft:sharpness: 等级`，裸 id（如 `sharpness`）会自动补 `minecraft:` 前缀
 - `targetMaterial` 与 `targetType` 同时配置时需**同时满足**才可操作
 - 支持的装备类型：`SWORD`、`SPEAR`、`TRIDENT`、`AXE`、`HOE`、`SHOVEL`、`PICKAXE`、`BOW`、`CROSSBOW`、`MACE`、`SHIELD`、`HELMET`、`CHESTPLATE`、`LEGGINGS`、`BOOTS`、`ELYTRA`
@@ -476,6 +518,10 @@ removers:
 **Q：`mythicmobs_skill` 宝石技能不触发？**
 
 确认宝石的 `buffType` 为 `mythicmobs_skill`、`attribute` 中的技能名与 MythicMobs 中配置的技能完全一致，且该装备已镶嵌；安装 MythicCrucible 时由它的物品技能系统按 `@触发器` 触发（默认 `@onSwing`），未安装时仅近战攻击触发（`@onSwing` / `@onAttack` / `@onHit`）；技能冷却、条件、目标选择等由 MythicMobs 自行处理。
+
+**Q：`ce_attribute` 宝石不生效？**
+
+确认 CraftEngine 26.8+ 已安装并启用（启动日志应出现「CraftEngine 属性桥接已启用」），宝石 `buffType` 为 `ce_attribute`，`attribute` 中的 CE 属性 id（如 `bakamc:strength`）已在 CraftEngine 的 `attributes` 配置中定义；镶嵌后属性会随物品持久化，穿戴装备即进入 CE 属性运算（词条 scope=weapon，显示在镶嵌信息与属性 lore，不显示在实体面板）。
 
 **Q：如何排查配置问题？**
 

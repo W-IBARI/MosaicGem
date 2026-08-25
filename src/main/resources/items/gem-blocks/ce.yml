@@ -1,0 +1,29 @@
+  CE测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&dCE测试宝石"
+    lore:
+      - ''
+      - '&7可镶嵌的装备类型: &f剑'
+      - ''
+      - '&f[ &dCraftEngine 属性 &f]'
+      - '&a▪ 力量：${random_value}'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    random:
+      random_value: '40.00~60.00'
+    # 拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（不填默认 0 = 不损毁）。
+    remove-destroy-chance: 0
+    # CraftEngine 自定义属性词条（需要 CraftEngine 26.8+；scope 固定 weapon：
+    # 只挂物品、只随攻击结算，不作用于实体面板）。
+    # attribute 行为 'CE 属性 id: 数值'，数值支持 ${随机值}。
+    # 可用属性示例（需 CraftEngine 配置 definitions）：
+    #   bakamc:attack_damage / bakamc:strength / bakamc:magic_power
+    #   bakamc:physical_defense / bakamc:magic_defense
+    buffType: 'ce_attribute'
+    attribute:
+      - 'bakamc:strength: ${random_value}'

@@ -50,6 +50,9 @@ public class ItemFactory {
     /** 宝石加成方式：原版属性（直接附加到物品属性修饰符） */
     public static final String BUFF_TYPE_VANILLA = "vanilla_attribute";
 
+    /** 宝石加成方式：CraftEngine 自定义属性（写入 CE 物品持久词条 craftengine:attribute_modifiers） */
+    public static final String BUFF_TYPE_CE = "ce_attribute";
+
     /** 宝石加成方式：原版附魔（附加/叠加到物品的原版附魔） */
     public static final String BUFF_TYPE_ENCHANT = "enchant";
 
@@ -71,6 +74,7 @@ public class ItemFactory {
     private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
     private final CrazyEnchantBridge crazyEnchantBridge;
+    private final CeAttributeBridge ceAttributeBridge;
 
     private final NamespacedKey keyItem;
     private final NamespacedKey keyId;
@@ -89,6 +93,7 @@ public class ItemFactory {
         this.plugin = plugin;
         this.configs = configs;
         this.crazyEnchantBridge = new CrazyEnchantBridge(plugin);
+        this.ceAttributeBridge = new CeAttributeBridge(plugin);
         this.keyItem = key("item");
         this.keyId = key("id");
         this.keyValues = key("values");
@@ -109,6 +114,10 @@ public class ItemFactory {
 
     CrazyEnchantBridge crazyEnchants() {
         return crazyEnchantBridge;
+    }
+
+    CeAttributeBridge ceAttributes() {
+        return ceAttributeBridge;
     }
 
     // ------------------------------------------------------------------
@@ -1227,17 +1236,83 @@ public class ItemFactory {
     // 文本与 PDC 工具
     // ------------------------------------------------------------------
 
+    /**
+     * 解析文本中的 ${...} 占位符：
+     * <ul>
+     *   <li>{@code ${key}}：直接替换为 random 值（原行为）；</li>
+     *   <li>{@code ${expr}}：按表达式求值（支持 + - * / % ^、括号、ROUND/FLOOR/CEIL/ABS/MIN/MAX 等函数），
+     *       结果按 config {@code settings.value-decimal-places} 位小数显示；</li>
+     *   <li>{@code ${expr,N}}：同上，但强制 N 位小数（如 {@code ${crit*100,0}} 显示整数）。</li>
+     * </ul>
+     * 表达式求值失败时保留原占位符文本，不阻断其余内容。
+     */
     public String resolve(String text, Map<String, String> values) {
         if (text == null) {
             return null;
         }
-        String result = text;
-        if (values != null) {
-            for (Map.Entry<String, String> entry : values.entrySet()) {
-                result = result.replace("${" + entry.getKey() + "}", entry.getValue());
+        if (values == null || values.isEmpty() || !text.contains("${")) {
+            return text;
+        }
+        StringBuilder out = new StringBuilder(text.length() + 16);
+        int i = 0;
+        int length = text.length();
+        while (i < length) {
+            int start = text.indexOf("${", i);
+            if (start < 0) {
+                out.append(text, i, length);
+                break;
+            }
+            out.append(text, i, start);
+            int end = text.indexOf('}', start + 2);
+            if (end < 0) {
+                out.append(text, start, length);
+                break;
+            }
+            out.append(resolvePlaceholder(text.substring(start + 2, end).trim(), values));
+            i = end + 1;
+        }
+        return out.toString();
+    }
+
+    private String resolvePlaceholder(String content, Map<String, String> values) {
+        // 1. 完整键名直接替换
+        if (values.containsKey(content)) {
+            return values.get(content);
+        }
+        // 2. 解析可选格式后缀 'expr,N'
+        String body = content;
+        Integer formatDecimals = null;
+        int comma = content.lastIndexOf(',');
+        if (comma > 0) {
+            String suffix = content.substring(comma + 1).trim();
+            if (suffix.matches("\\d+")) {
+                formatDecimals = Integer.parseInt(suffix);
+                body = content.substring(0, comma).trim();
             }
         }
-        return result;
+        // 3. 键名 + 显式小数位
+        if (values.containsKey(body)) {
+            String raw = values.get(body);
+            return formatDecimals == null ? raw : formatNumber(raw, formatDecimals);
+        }
+        // 4. 表达式求值（变量为 random 值）
+        try {
+            double value = ValueExpr.eval(body, values);
+            return formatDecimals != null
+                    ? String.format(Locale.ROOT, "%." + formatDecimals + "f", value)
+                    : String.format(Locale.ROOT, "%." + configs.valueDecimalPlaces() + "f", value);
+        } catch (Exception e) {
+            return "${" + content + "}";
+        }
+    }
+
+    private String formatNumber(String raw, int decimals) {
+        try {
+            double value = Double.parseDouble(raw.trim());
+            return String.format(Locale.ROOT, "%." + decimals + "f", value);
+        } catch (NumberFormatException e) {
+            return raw;
+        }
     }
 
     public static String colorize(String text) {

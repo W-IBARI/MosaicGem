@@ -25,6 +25,7 @@ public final class BuffTypeRegistry {
     private BuffTypeRegistry() {
         register(new SxAttributeHandler());
         register(new VanillaAttributeHandler());
+        register(new CeAttributeHandler());
         register(new EnchantHandler());
         register(new MythicMobSkillHandler());
     }

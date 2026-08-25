@@ -172,6 +172,9 @@ public final class MosaicGemPlugin extends JavaPlugin {
         if (Bukkit.getPluginManager().getPlugin("MythicMobs") != null) {
             appendResource(content, "items/gem-blocks/mm.yml");
         }
+        if (Bukkit.getPluginManager().getPlugin("CraftEngine") != null) {
+            appendResource(content, "items/gem-blocks/ce.yml");
+        }
 
         try {
             Files.write(target.toPath(), content.toString().getBytes(StandardCharsets.UTF_8));
