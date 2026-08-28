@@ -3,7 +3,21 @@ settings:
   # 消息语言（对应加载 messages/<语言>.yml；内置语言：zh_cn / en_us）
   language: zh_cn
   # 单个物品可拥有的最大孔数（全局硬上限，不论孔来自哪个打孔器，总和均不可超过）
+  # 分层规则（对具体物品按优先级取用）：物品id > 物品类型 > 全局
   max-holes: 6
+  # 按【物品类型】的孔数上限（覆盖全局；key 与打孔器 targetType 同语义，大小写不敏感）。
+  # 物品类型可为：SWORD/HELMET/CHESTPLATE/LEGGINGS/BOOTS/BOW/CROSSBOW/AXE/SPEAR/TRIDENT 等
+  # 示例：
+  # max-holes-by-type:
+  #   SWORD: 8
+  #   HELMET: 4
+  max-holes-by-type: {}
+  # 按【物品 id（材质大写名）】的孔数上限（覆盖类型与全局）。
+  # 示例：
+  # max-holes-by-id:
+  #   IRON_SWORD: 10
+  #   NETHERITE_SWORD: 12
+  max-holes-by-id: {}
   # gemtype 标签全局数量限制：key 为宝石配置里的 gemtype 标签名，value 为
   # 一件装备上同一标签的宝石最多可镶嵌数量（0 或缺省 = 不限制）。
   # 示例：'攻击: 2' 表示带"攻击"标签的宝石一件装备最多镶嵌 2 颗。

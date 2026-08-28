@@ -127,9 +127,9 @@ public class GemService {
             return fail(configs.message("target-invalid"), target, false);
         }
         SocketData data = factory.readSocketData(target);
-        int globalMax = configs.maxHoles();
-        if (data.holes() >= globalMax) {
-            return fail(configs.message("punch-max-global").replace("{max}", String.valueOf(globalMax)), target, false);
+        int maxHoles = configs.maxHolesFor(target);
+        if (data.holes() >= maxHoles) {
+            return fail(configs.message("punch-max-global").replace("{max}", String.valueOf(maxHoles)), target, false);
         }
         Map<String, Integer> sources = new LinkedHashMap<>(data.holeSources());
         int sourceCount = sources.getOrDefault(definition.getId(), 0);
@@ -146,7 +146,7 @@ public class GemService {
         factory.applySocketLore(result, new SocketData(newHoles, sources, data.gems()), configs.socketLore());
         String message = configs.message("punch-success")
                 .replace("{holes}", String.valueOf(newHoles))
-                .replace("{max}", String.valueOf(globalMax));
+                .replace("{max}", String.valueOf(maxHoles));
         return new OperationResult(result, null, true, message);
     }
 

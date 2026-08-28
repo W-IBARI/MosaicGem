@@ -45,9 +45,26 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
 - Success: equipment sockets +1, one puncher is consumed
 - Failure: one puncher is consumed; the equipment and socketed gems are unaffected
 - `rate` is a percentage (0-100)
-- Socket limits have two dimensions; either one blocks the operation with a message:
-  - **Global limit**: total sockets from all sources cannot exceed `settings.max-holes`
+- Socket limits are resolved in **three layers** per item, from highest priority down (any hit blocks the operation with a message):
+  - **Item id limit** (overrides type & global): `settings.max-holes-by-id` keyed by the **uppercase material name** (e.g. `IRON_SWORD`, `SHIELD`); takes effect on match
+  - **Item type limit** (overrides global): `settings.max-holes-by-type` keyed by **item type** (same semantics as puncher `targetType`, e.g. `SWORD`/`HELMET`/`CROSSBOW`, case-insensitive); used when the id layer misses
+  - **Global limit** (fallback): total sockets from all sources cannot exceed `settings.max-holes`; a value of `0` means the type/item cannot be punched
   - **Source limit**: one puncher type cannot contribute more sockets than its `holesnum`
+
+#### Configuration example (`settings` section)
+
+```yaml
+settings:
+  max-holes: 6            # ① Global (fallback)
+  max-holes-by-type:      # ② Item type (overrides ①)
+    SWORD: 8
+    HELMET: 4
+  max-holes-by-id:        # ③ Item id (uppercase material, overrides ①②)
+    IRON_SWORD: 10
+    SHIELD: 1
+```
+
+Resolution order: `③ item id` → `② item type` → `① global`; unconfigured keys fall back to the global value.
 
 ### Socketing
 

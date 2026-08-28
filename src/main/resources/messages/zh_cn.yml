@@ -2,7 +2,7 @@
 # 语言文件命名规则：messages_<语言>.yml，由 config.yml 的 settings.language 选择
 # 内置语言：zh_cn（简体中文）、en_us（English）
 # 所有未成功的交互都会提示玩家，各消息对应的拦截场景如下：
-#   punch-max-global            打孔：物品总孔数已达到全局上限（即使该打孔器的来源上限未满）
+#   punch-max-global            打孔：物品孔数已达到该物品的上限（按 id>类型>全局 分层取值）
 #   punch-max-source            打孔：该打孔器类型给此物品贡献的孔数已达到自身上限
 #   punch-fail                  打孔：成功率判定失败（工具已消耗，物品与已镶嵌宝石不受影响）
 #   socket-no-hole              镶嵌：物品还没有任何孔位（未打孔）
@@ -31,7 +31,7 @@ messages:
   debug-usage: '&c用法: /mosaicgem debug [玩家]'
   list-usage: '&c用法: /mosaicgem list <gem|puncher|remover>'
   punch-success: '&a打孔成功！当前孔数: &f{holes}&a/&f{max}'
-  punch-max-global: '&c打孔失败：该物品的孔数已达到全局上限（{max}）！'
+  punch-max-global: '&c打孔失败：该物品的孔数已达到上限（{max}）！'
   punch-max-source: '&c打孔失败：该打孔器类型已达到来源上限（{max}）！'
   punch-fail: '&c打孔失败，打孔器已消耗！'
   socket-success: '&a宝石镶嵌成功！'

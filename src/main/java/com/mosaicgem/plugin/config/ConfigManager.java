@@ -3,6 +3,7 @@ package com.mosaicgem.plugin.config;
 import com.mosaicgem.plugin.MosaicGemPlugin;
 import com.mosaicgem.plugin.util.BuffTypeRegistry;
 import com.mosaicgem.plugin.model.ToolType;
+import com.mosaicgem.plugin.util.TargetMatcher;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -41,6 +42,10 @@ public class ConfigManager {
     private final Map<String, RemoverDefinition> removers = new LinkedHashMap<>();
     /** gemtype 标签全局数量限制（key: 标签名, value: 上限）。 */
     private Map<String, Integer> gemTypeLimits = new LinkedHashMap<>();
+    /** 物品类型 -> 孔数上限（层级 2：覆盖全局 settings.max-holes）。 */
+    private final Map<String, Integer> maxHolesByType = new LinkedHashMap<>();
+    /** 物品 id（材质大写名）-> 孔数上限（层级 3：覆盖类型与全局）。 */
+    private final Map<String, Integer> maxHolesById = new LinkedHashMap<>();
 
     public ConfigManager(MosaicGemPlugin plugin) {
         this.plugin = plugin;
@@ -72,6 +77,28 @@ public class ConfigManager {
         if (gemTypeLimitSection != null) {
             for (String key : gemTypeLimitSection.getKeys(false)) {
                 gemTypeLimits.put(key, Math.max(0, gemTypeLimitSection.getInt(key)));
+            }
+        }
+
+        // 解析孔数上限分层：类型（层级 2）与物品 id（层级 3）
+        maxHolesByType.clear();
+        ConfigurationSection byTypeSection = config.getConfigurationSection("settings.max-holes-by-type");
+        if (byTypeSection != null) {
+            for (String key : byTypeSection.getKeys(false)) {
+                int value = byTypeSection.getInt(key, -1);
+                if (value >= 0) {
+                    maxHolesByType.put(key.toUpperCase(Locale.ROOT), value);
+                }
+            }
+        }
+        maxHolesById.clear();
+        ConfigurationSection byIdSection = config.getConfigurationSection("settings.max-holes-by-id");
+        if (byIdSection != null) {
+            for (String key : byIdSection.getKeys(false)) {
+                int value = byIdSection.getInt(key, -1);
+                if (value >= 0) {
+                    maxHolesById.put(key.toUpperCase(Locale.ROOT), value);
+                }
             }
         }
 
@@ -293,8 +320,47 @@ public class ConfigManager {
         return removers;
     }
 
+    /**
+     * 单个物品可用的孔数上限（全局兜底值，settings.max-holes）。
+     */
     public int maxHoles() {
         return Math.max(0, config.getInt("settings.max-holes", 6));
+    }
+
+    /**
+     * 物品可用孔数上限（三层解析，对具体物品从高优先级向下匹配）：
+     *   1. 物品 id（材质大写名，settings.max-holes-by-id）——层级 3，覆盖 2/1
+     *   2. 物品类型（settings.max-holes-by-type，与打孔器 targetType 同语义）——层级 2，覆盖 1
+     *   3. 全局（settings.max-holes）——层级 1
+     */
+    public int maxHolesFor(org.bukkit.inventory.ItemStack target) {
+        if (target != null && target.getType() != null) {
+            String idName = target.getType().name().toUpperCase(Locale.ROOT);
+            Integer byId = maxHolesById.get(idName);
+            if (byId != null) {
+                return byId;
+            }
+            for (Map.Entry<String, Integer> entry : maxHolesByType.entrySet()) {
+                if (TargetMatcher.matchesType(target.getType(), entry.getKey())) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return maxHoles();
+    }
+
+    /**
+     * 物品类型 -> 孔数上限（层级 2；覆盖全局）。
+     */
+    public Map<String, Integer> maxHolesByType() {
+        return maxHolesByType;
+    }
+
+    /**
+     * 物品 id（材质大写名）-> 孔数上限（层级 3；覆盖类型与全局）。
+     */
+    public Map<String, Integer> maxHolesById() {
+        return maxHolesById;
     }
 
     /**

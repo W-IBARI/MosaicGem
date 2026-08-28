@@ -2,7 +2,7 @@
 # Language files are named messages_<language>.yml and are selected by
 # settings.language in config.yml. Built-in languages: zh_cn, en_us.
 # Every blocked or failed interaction notifies the player; the keys map to:
-#   punch-max-global            Punch: item holes reached the global limit
+#   punch-max-global            Punch: item holes reached the per-item limit (by id > type > global)
 #   punch-max-source            Punch: this puncher type reached its source limit
 #   punch-fail                  Punch: success-rate check failed (tool consumed, item/gems unaffected)
 #   socket-no-hole              Socket: item has no holes yet
@@ -31,7 +31,7 @@ messages:
   debug-usage: '&cUsage: /mosaicgem debug [player]'
   list-usage: '&cUsage: /mosaicgem list <gem|puncher|remover>'
   punch-success: '&aPunch succeeded! Holes: &f{holes}&a/&f{max}'
-  punch-max-global: '&cPunch failed: this item''s holes have reached the global limit ({max})!'
+  punch-max-global: '&cPunch failed: this item''s holes have reached the per-item limit ({max})!'
   punch-max-source: '&cPunch failed: this puncher type has reached its source limit ({max})!'
   punch-fail: '&cPunch failed; the puncher was consumed!'
   socket-success: '&aGem socketed successfully!'
