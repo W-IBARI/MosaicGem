@@ -23,7 +23,7 @@ final class MythicMobSkillHandler implements BuffTypeHandler {
             return List.of();
         }
         List<String> result = new ArrayList<>();
-        for (String line : definition.getAttribute()) {
+        for (String line : definition.attributeLinesOf(ItemFactory.BUFF_TYPE_MM_SKILL)) {
             String name = MythicSkillLine.displayName(factory.resolve(line, gem.values()));
             if (!name.isEmpty()) {
                 result.add(name);

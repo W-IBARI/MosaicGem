@@ -1,6 +1,7 @@
 package com.mosaicgem.plugin.service;
 
 import com.mosaicgem.plugin.MosaicGemPlugin;
+import com.mosaicgem.plugin.config.BuffDef;
 import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.config.GemDefinition;
 import com.mosaicgem.plugin.config.ItemDefinition;
@@ -166,8 +167,10 @@ public class GemService {
         if (data.gems().size() >= data.holes()) {
             return fail(configs.message("socket-full"), target, false);
         }
-        if (!BuffTypeRegistry.get().isKnown(definition.getBuffType())) {
-            return fail(configs.message("socket-bufftype-unsupported"), target, false);
+        for (String type : definition.buffTypes()) {
+            if (!BuffTypeRegistry.get().isKnown(type)) {
+                return fail(configs.message("socket-bufftype-unsupported").replace("{type}", type), target, false);
+            }
         }
         if (definition.getRepetitions() != null) {
             long count = data.gems().stream().filter(gem -> gem.id().equals(definition.getId())).count();
@@ -255,14 +258,16 @@ public class GemService {
     // ------------------------------------------------------------------
 
     private List<String> resolveLines(GemDefinition definition, Map<String, String> values) {
-        if (!BuffTypeRegistry.get().usesLoreLines(definition.getBuffType())) {
-            return List.of();
+        List<String> lines = new ArrayList<>();
+        for (BuffDef buff : definition.getBuffs()) {
+            if (!BuffTypeRegistry.get().usesLoreLines(buff.type())) {
+                continue;
+            }
+            for (String line : buff.attribute()) {
+                lines.add(ItemFactory.colorize(factory.resolve(ItemFactory.stripLoreIdentifier(line), values)));
+            }
         }
-        return definition.getAttribute().stream()
-                .map(ItemFactory::stripLoreIdentifier)
-                .map(line -> factory.resolve(line, values))
-                .map(ItemFactory::colorize)
-                .toList();
+        return lines;
     }
 
     private ItemStack buildReturnedGem(SocketedGem gem) {

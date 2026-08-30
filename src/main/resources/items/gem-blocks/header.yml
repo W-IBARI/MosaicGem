@@ -22,7 +22,10 @@
 #     不填默认 0（永不损毁）；数值越界自动钳制到 0~100
 #     与拆卸器成功率无关：拆卸器判定成功后仍需独立过此判定，命中则宝石不返还
 #   random: 创建随机数（生成时随机取值，并应用到其他部分）
-#   buffType: 加成生效方式
+#   buffs: v1.2+ 词条列表（可多条；一颗宝石可同时携带多种加成方式）
+#     每条词条 = type(加成生效方式) + attribute(该方式的行)
+#     旧版 buffType + attribute 自动转成单条词条（向后兼容；若配置了 buffs 则优先使用 buffs）
+#   type: 加成生效方式
 #     sx_attribute：SX 属性，属性行写入装备 lore，由 SX-Attribute 读取
 #     vanilla_attribute：原版属性，直接附加到装备的属性修饰符（AttributeModifier）
 #     enchant：附魔，直接附加/叠加到装备的原版附魔（CrazyEnchantments 附魔用 ce: 前缀）
@@ -30,7 +33,7 @@
 #       attribute 格式：'技能名 @触发器'（如 'TestSkill @onSwing'），不写触发器默认 @onSwing；
 #       安装 MythicCrucible 时由其物品技能系统触发（SWING/USE/RIGHTCLICK 等），
 #       未安装时回退到内置的近战攻击触发（仅 onSwing/onAttack 类触发器生效）
-#   attribute: 注入的属性行
+#   attribute: 该词条注入的属性行（格式与旧版 attribute 完全一致）
 #     sx_attribute 格式：'标识符: 属性名: 数值'（如 '1: 攻击力: ${random_value}'）
 #       标识符由宝石自身 LoreChange 映射（如 '- 1: 攻击力'）；无映射的属性不动作
 #     vanilla_attribute 格式：'原版属性id：数值'（如 'minecraft:attack_damage: ${random_value}'）

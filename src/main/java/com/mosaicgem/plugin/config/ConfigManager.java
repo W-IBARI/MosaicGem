@@ -104,10 +104,12 @@ public class ConfigManager {
 
         int warnings = 0;
         for (GemDefinition gem : gems.values()) {
-            if (!BuffTypeRegistry.get().isKnown(gem.getBuffType())) {
-                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType()
-                        + "（当前仅支持 " + BuffTypeRegistry.get().supportedTypes() + "，属性将不会注入）");
-                warnings++;
+            for (String type : gem.buffTypes()) {
+                if (!BuffTypeRegistry.get().isKnown(type)) {
+                    plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的词条类型不受支持: " + type
+                            + "（当前仅支持 " + BuffTypeRegistry.get().supportedTypes() + "，该词条将不会注入）");
+                    warnings++;
+                }
             }
         }
         if (warnings > 0) {

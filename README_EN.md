@@ -11,7 +11,7 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
 ## Features
 
 - **Equipment punching**: use a puncher to add sockets to equipment; success rate and two-dimensional socket limits are configurable
-- **Gem socketing**: gems carry random values. `sx_attribute` gems merge into the equipment attribute panel and are read by SX-Attribute; `vanilla_attribute` gems apply directly as vanilla attribute modifiers; `ce_attribute` gems write CraftEngine custom-attribute persistent item modifiers (CE 26.8+); `enchant` gems add/stack vanilla enchantments; `mythicmobs_skill` gems cast MythicMobs skills on the configured trigger (swing by default)
+- **Gem socketing**: gems carry random values, and **one gem can carry multiple buff kinds at once (`buffs` entries, v1.2+)**; `sx_attribute` gems merge into the equipment attribute panel and are read by SX-Attribute; `vanilla_attribute` gems apply directly as vanilla attribute modifiers; `ce_attribute` gems write CraftEngine custom-attribute persistent item modifiers (CE 26.8+); `enchant` gems add/stack vanilla enchantments; `mythicmobs_skill` gems cast MythicMobs skills on the configured trigger (swing by default)
 - **Gem removal**: removed gems are returned with their original random values, and the equipment attribute panel is restored automatically; each gem can set its own `remove-destroy-chance` (0-100%) — independent of the remover's success rate, rolled after a successful removal, and on a hit the gem is destroyed and not returned
 - **Attribute panel merging**: an existing `攻击力：13.90` line plus a +20 gem becomes `攻击力：33.90（+20）`; attributes that only exist on the gem are appended as new lines
 - **Three interaction methods**: anvil, crafting (2x2 inventory or workbench), and dragging a tool onto the target item — each can be toggled independently
@@ -72,7 +72,7 @@ Resolution order: `③ item id` → `② item type` → `① global`; unconfigur
 - Gems roll random values at creation time from `random` and keep them for that instance; each gem in a bulk give is independent
 - The same gem can be socketed multiple times according to `repetitions` (unlimited if omitted)
 - Gems can set `gemtype` type tags (a string list, multiple allowed); combined with `settings.gem-type-limit` in `config.yml`, it limits how many gems of the same `gemtype` tag can be socketed on one item (e.g. `攻击: 2` = at most 2 gems tagged "攻击" per item). Tags without a configured limit, or gems without `gemtype`, are not limited
-- `buffType` supports `sx_attribute` (lore read by SX-Attribute), `vanilla_attribute` (vanilla attribute modifiers), `ce_attribute` (CraftEngine custom-attribute persistent item modifiers, CE 26.8+), `enchant` (add/stack enchantments) and `mythicmobs_skill` (cast MythicMobs skills on the configured trigger, swing by default); other types are blocked with a message
+- `buffs` (v1.2+): a **list of buff entries** — one gem can carry multiple buff kinds at once; each entry = `type` (buff kind) + `attribute` (lines for that kind, same format as before). Legacy `buffType + attribute` is auto-converted to a single entry (backward compatible; `buffs` wins when both are present). `type` supports `sx_attribute` (lore read by SX-Attribute), `vanilla_attribute` (vanilla attribute modifiers), `ce_attribute` (CraftEngine custom-attribute persistent item modifiers, CE 26.8+), `enchant` (add/stack enchantments) and `mythicmobs_skill` (cast MythicMobs skills on the configured trigger, swing by default); other types are blocked with a message
 - `sx_attribute` merging rules:
   - The item's existing attribute line and all gems of the same attribute are summed and shown as `total（+bonus）`, e.g. `攻击力：33.90（+20）`
   - Attributes that only exist on gems are appended as new lines
@@ -160,6 +160,7 @@ All three methods can be toggled in `config.yml` under `settings.interactions`.
 | `/mosaicgem debug [player]` | Inspect sockets, gems, attribute lines, etc. | `mosaicgem.debug` (default OP) |
 | `/mosaicgem list <gem\|puncher\|remover>` | List configured items | `mosaicgem.list` (default OP) |
 | `/mosaicgem selftest` | Environment-free self-test: config parsing, item generation, data read/write, attribute merging | `mosaicgem.debug` (default OP) |
+| `/mosaicgem lore` | Toggle the gem detail lines of the held socketed item (per-gem value rows in the socket info; main entries stay; state persists on the item) | `mosaicgem.lore` (default true, all players) |
 
 Aliases: `/mg`, `/mgem`.
 
@@ -322,7 +323,9 @@ The language files also contain two name mapping sections:
 | `socket-full` | Socketing: sockets are full |
 | `socket-repeat-limit` | Socketing: repeat-socket limit reached for this gem |
 | `socket-gemtype-limit` | Socketing: global per-gemtype limit reached (settings.gem-type-limit) |
-| `socket-bufftype-unsupported` | Socketing: buffType not supported |
+| `socket-bufftype-unsupported` | Socketing: buff entry type not supported (with `{type}` placeholder) |
+| `lore-detail-on` / `lore-detail-off` | Toggle result messages for `/mosaicgem lore` |
+| `lore-no-item` / `lore-no-gems` | Failure messages for `/mosaicgem lore` (empty hand / item has no gems) |
 | `remove-empty` | Removal: no socketed gems |
 | `remove-fail` | Removal: success roll failed (tool consumed) |
 | `remove-destroyed` | Removal: succeeded but the gem's destroy check hit (gem lost, not returned) |
@@ -381,10 +384,11 @@ gems:
     remove-destroy-chance: 0     # removal destroy chance 0-100% (default 0 = never; independent of remover success rate)
     random:                      # random values rolled at creation; referenced in lore/attribute
       random_value: '10.00~20.00'
-    buffType: 'sx_attribute'     # SX attribute: written to lore, read by SX-Attribute
-    attribute:                   # leading digit is the identifier, matched against LoreChange keys
-      - '1: 攻击力: ${random_value}'
-      - '2: 防御力: ${random_value}'
+    buffs:                       # v1.2+ entry list; legacy buffType + attribute still works
+      - type: sx_attribute       # SX attribute: written to lore, read by SX-Attribute
+        attribute:               # leading digit is the identifier, matched against LoreChange keys
+          - '1: 攻击力: ${random_value}'
+          - '2: 防御力: ${random_value}'
     LoreChange:                  # identifier -> attribute name; attributes without mapping do nothing
       - 1: 攻击力
       - 2: 防御力
@@ -403,10 +407,11 @@ gems:
     repetitions: 5
     random:
       random_value: '5.00~10.00'
-    buffType: 'vanilla_attribute'  # vanilla attribute: applied to AttributeModifier, lore untouched
-    attribute:                     # vanilla_attribute only: "vanilla attribute id：数值"
-      - 'minecraft:attack_damage: ${random_value}'
-      - 'minecraft:attack_speed: 2'
+    buffs:
+      - type: vanilla_attribute  # vanilla attribute: applied to AttributeModifier, lore untouched
+        attribute:                # vanilla_attribute only: "vanilla attribute id：value"
+          - 'minecraft:attack_damage: ${random_value}'
+          - 'minecraft:attack_speed: 2'
 
   附魔测试宝石:
     material: PAPER
@@ -422,10 +427,11 @@ gems:
     repetitions: 5
     random:
       random_value: '1~5'
-    buffType: 'enchant'                # enchant: added/stacked onto the item
-    attribute:                         # enchant only: "enchant id：level"
-      - 'minecraft:sharpness: ${random_value}'
-      - 'minecraft:unbreaking: 1'
+    buffs:
+      - type: enchant                # enchant: added/stacked onto the item
+        attribute:                    # enchant only: "enchant id：level"
+          - 'minecraft:sharpness: ${random_value}'
+          - 'minecraft:unbreaking: 1'
 
   MM技能测试宝石:
     material: PAPER
@@ -439,15 +445,43 @@ gems:
     targetMaterial:
       - IRON_SWORD
     repetitions: 5
-    buffType: 'mythicmobs_skill'       # MythicMobs skill: triggered by Crucible item skills
-    attribute:                         # mythicmobs_skill only: one MythicMobs skill per line
-      - 'TestSkill @onSwing'
+    buffs:
+      - type: mythicmobs_skill       # MythicMobs skill: triggered by Crucible item skills
+        attribute:                    # mythicmobs_skill only: one MythicMobs skill per line
+          - 'TestSkill @onSwing'
+
+  # Composite example: one gem carrying CE attribute + enchant + vanilla attribute + MM skill
+  复合测试宝石:
+    material: NETHER_STAR
+    isEnchant: true
+    name: "&d复合测试宝石"
+    targetType:
+      - SWORD
+    repetitions: 1
+    random:
+      attack: '2.50~5.00'
+    remove-destroy-chance: 0
+    buffs:
+      - type: ce_attribute
+        attribute:
+          - '1: bakamc:strength: ${attack}'
+      - type: enchant
+        attribute:
+          - 'minecraft:sharpness: 3'
+      - type: vanilla_attribute
+        attribute:
+          - 'minecraft:attack_damage: ${attack}'
+      - type: mythicmobs_skill
+        attribute:
+          - 'TestSkill @onSwing'
+    LoreChange:
+      - 1: 力量
 ```
 
 - `random` supports multiple random numbers in `min~max` format; decimals follow the configured precision and the value is fixed to the gem instance
 - `gemtype`: gem type tags (a string list, multiple allowed, e.g. `['攻击', '火属性']`). Combined with `settings.gem-type-limit` in `config.yml`, limits how many gems of the same tag can be socketed on one item; empty list (omitted) means the gem does not participate in type counting
 - `remove-destroy-chance`: probability (0-100, percent; default 0 = never destroyed; out-of-range values are clamped) that the gem is destroyed (lost) on removal. **Independent of the remover's success rate**: rolled only after the remover succeeds; on a hit the gem is not returned
-- `attribute`: injected attribute lines. The leading digit is an **identifier** (e.g. `1:`, `2:`); the attribute name comes from the gem's own `LoreChange` section (identifier → name); attributes without a mapping do nothing; the value is taken from the numeric value of the corresponding attribute line
+- `buffs[].attribute`: attribute lines of that entry (same format as the legacy `attribute`). The leading digit is an **identifier** (e.g. `1:`, `2:`); the attribute name comes from the gem's own `LoreChange` section (identifier → name); attributes without a mapping do nothing; the value is taken from the numeric value of the corresponding attribute line
 - `LoreChange`: the attribute-panel-merge mapping, independent of buffType — the `attribute-lore` section reads each gem's mapping and merges the corresponding attribute value into the equipment lore by the "total + bonus" rules (same attributes summed, total + bonus shown); applies to ALL buffTypes
 - `sx_attribute`: written to the equipment lore and read by SX-Attribute
 - `vanilla_attribute`: applied directly as vanilla attribute modifiers (same attributes merge into one modifier; the item's native same-attribute modifiers are merged into the total); lore is **not** modified
@@ -524,7 +558,7 @@ Development environment: JDK 25, Gradle 9.6.1 (project wrapper included), `dev.f
 
 **Q: Attributes are not working?**
 
-Make sure `SX-Item` and `SX-Attribute` are installed and enabled, the gem uses `buffType: sx_attribute`, and the merged line exists in the equipment attribute panel; for `vanilla_attribute` gems, check that the corresponding vanilla attribute is present in the item's tooltip.
+Make sure `SX-Item` and `SX-Attribute` are installed and enabled, the gem uses a buff entry with `type: sx_attribute` (`buffs` format), and the merged line exists in the equipment attribute panel; for `vanilla_attribute` gems, check that the corresponding vanilla attribute is present in the item's tooltip.
 
 **Q: `ce:` enchant gems are not working?**
 
@@ -536,11 +570,11 @@ Make sure MythicMobs is installed and loads before MosaicGem (declared as a soft
 
 **Q: `mythicmobs_skill` gems are not casting?**
 
-Make sure the gem uses `buffType: mythicmobs_skill`, the skill name in `attribute` matches a skill configured in MythicMobs exactly, and the item is socketed; with MythicCrucible installed, triggers follow the `@<trigger>` field (default `@onSwing`); without it, only melee attacks trigger (`@onSwing` / `@onAttack` / `@onHit`). Cooldowns, conditions, and target selection are handled by MythicMobs.
+Make sure the gem uses a buff entry with `type: mythicmobs_skill`, the skill name in `attribute` matches a skill configured in MythicMobs exactly, and the item is socketed; with MythicCrucible installed, triggers follow the `@<trigger>` field (default `@onSwing`); without it, only melee attacks trigger (`@onSwing` / `@onAttack` / `@onHit`). Cooldowns, conditions, and target selection are handled by MythicMobs.
 
 **Q: `ce_attribute` gems don't work?**
 
-Make sure CraftEngine 26.8+ is installed and enabled (the startup log should show "CraftEngine 属性桥接已启用"), the gem uses `buffType: ce_attribute`, and the CE attribute id in `attribute` (e.g. `bakamc:strength`) is defined in CraftEngine's `attributes` configuration. Socketed gems persist their words with the item; the CE attribute pipeline picks them up when the item is worn (scope=weapon: shown in socket info and lore, not in the entity panel).
+Make sure CraftEngine 26.8+ is installed and enabled (the startup log should show "CraftEngine 属性桥接已启用"), the gem uses a buff entry with `type: ce_attribute`, and the CE attribute id in `attribute` (e.g. `bakamc:strength`) is defined in CraftEngine's `attributes` configuration. Socketed gems persist their words with the item; the CE attribute pipeline picks them up when the item is worn (scope=weapon: shown in socket info and lore, not in the entity panel).
 
 **Q: How do I debug configuration issues?**
 

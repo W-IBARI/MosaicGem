@@ -39,7 +39,7 @@ messages:
   socket-full: '&cSocket failed: this item''s holes are full!'
   socket-repeat-limit: '&cThis gem has reached its repeat socketing limit!'
   socket-gemtype-limit: '&cSocket failed: this item has reached the limit for gem type "{label}" ({limit})!'
-  socket-bufftype-unsupported: '&cSocket failed: this gem''s buff type is not supported!'
+  socket-bufftype-unsupported: '&cSocket failed: this gem''s buff type "{type}" is not supported!'
   remove-success: '&aGem removed successfully; the gem was returned.'
   remove-fail: '&cRemoval failed; the remover was consumed!'
   remove-empty: '&cRemoval failed: this item has no socketed gems!'
@@ -54,6 +54,12 @@ messages:
   help-give: '&7/mosaicgem give <id> [amount] [player] &8- &fGive items'
   help-debug: '&7/mosaicgem debug [player] &8- &fView item debug info'
   help-list: '&7/mosaicgem list <gem|puncher|remover> &8- &fList configured items'
+  help-lore: '&7/mosaicgem lore &8- &ftoggle gem detail lines of the held socketed item'
+  lore-player-only: '&cThis command can only be used by players!'
+  lore-no-item: '&cHold an item in your main hand first!'
+  lore-no-gems: '&cThis item has no socketed gems!'
+  lore-detail-on: '&aGem details are now shown.'
+  lore-detail-off: '&eGem details are now hidden (main entries kept); run again to restore.'
   help-selftest: '&7/mosaicgem selftest &8- &fRun configuration and data self-test'
   debug-no-item: '&c{player} has no item in their main hand'
   debug-title: '&7===== MosaicGem Debug ====='
@@ -129,6 +135,8 @@ attribute-names:
   'bakamc:magic_power': Magic Power
   'bakamc:physical_defense': Physical Defense
   'bakamc:magic_defense': Magic Defense
+  'bakamc:critical_chance': Crit Chance
+  'bakamc:critical_damage': Crit Damage
 
 # Enchant id -> display name mapping (used in socket lore for enchant gems)
 # Vanilla enchants use the minecraft: prefix; CrazyEnchantments use the ce: prefix (e.g. ce:Wither)

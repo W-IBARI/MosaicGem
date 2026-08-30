@@ -18,12 +18,15 @@
       random_value: '40.00~60.00'
     # 拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（不填默认 0 = 不损毁）。
     remove-destroy-chance: 0
-    # CraftEngine 自定义属性词条（需要 CraftEngine 26.8+；scope 固定 weapon：
-    # 只挂物品、只随攻击结算，不作用于实体面板）。
-    # attribute 行为 'CE 属性 id: 数值'，数值支持 ${随机值}。
+    # v1.2+: 词条列表 buffs —— 一颗宝石可同时含多种加成方式（词条），
+    # 每条词条 = type(加成方式) + attribute(该方式的行)；旧版 buffType + attribute 仍兼容
+    # （解析时自动转成单条词条）。CraftEngine 自定义属性词条（需要 CraftEngine 26.8+；
+    # scope 固定 weapon：只挂物品、只随攻击结算，不作用于实体面板）。
+    # attribute 行为 'CE 属性 id: 数值'，数值支持 $变量占位符。
     # 可用属性示例（需 CraftEngine 配置 definitions）：
     #   bakamc:attack_damage / bakamc:strength / bakamc:magic_power
     #   bakamc:physical_defense / bakamc:magic_defense
-    buffType: 'ce_attribute'
-    attribute:
-      - 'bakamc:strength: ${random_value}'
+    buffs:
+      - type: ce_attribute
+        attribute:
+          - 'bakamc:strength: ${random_value}'

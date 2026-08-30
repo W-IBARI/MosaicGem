@@ -11,7 +11,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 ## 功能特性
 
 - **装备打孔**：使用打孔器为装备添加孔位，成功率与双维度孔数上限可配置
-- **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`ce_attribute` 宝石作为 CraftEngine 自定义属性持久词条写入 CE 物品数据（CE 26.8+）；`enchant` 宝石直接附加/叠加到装备的附魔；`mythicmobs_skill` 宝石按配置的触发器（默认挥动）发动 MythicMobs 技能
+- **宝石镶嵌**：宝石携带随机数值，**一颗宝石可同时携带多种加成方式（词条 `buffs`，v1.2+）**；`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`ce_attribute` 宝石作为 CraftEngine 自定义属性持久词条写入 CE 物品数据（CE 26.8+）；`enchant` 宝石直接附加/叠加到装备的附魔；`mythicmobs_skill` 宝石按配置的触发器（默认挥动）发动 MythicMobs 技能
 - **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原；每颗宝石可独立配置 `remove-destroy-chance` 拆卸损毁概率（0-100%），与拆卸器成功率无关，拆卸成功后再独立判定，命中则宝石损毁不返还
 - **属性面板合并**：物品原有 `攻击力：13.90` + 宝石 +20 → `攻击力：33.90（+20）`，宝石独有的属性自动新增行
 - **三种交互方式**：铁砧合成、工作台/随身合成、拖拽工具到目标物品，均可独立开关
@@ -72,7 +72,7 @@ settings:
 - 宝石生成时，按照配置的值生成，同时支持随机数配置：按 `random` 配置随机取值并固定到该宝石实例；批量发放时每颗宝石随机值独立
 - 同一种宝石可按 `repetitions` 限制重复镶嵌次数（不填为无上限）
 - 宝石可配置 `gemtype` 类型标签（字符串列表，可多个），配合 `config.yml` 的 `settings.gem-type-limit` 全局限制：一件装备上同一 `gemtype` 标签的宝石数量不得超过上限（如 `攻击: 2` 表示带"攻击"标签的宝石一件装备最多 2 颗）；标签未配置上限或 `gemtype` 缺省时不限制
-- `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`ce_attribute`（写入 CraftEngine 自定义属性持久词条，CE 26.8+）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（按配置的触发器发动 MythicMobs 技能，默认挥动），其他类型会拦截镶嵌并提示
+- `buffs`（v1.2+）：**词条列表**，一颗宝石可同时携带多种加成方式；每条词条 = `type`（加成生效方式）+ `attribute`（该方式下的属性行，格式与旧版一致）。旧版 `buffType + attribute` 解析时自动转成单条词条（兼容，无需迁移；配置了 `buffs` 时优先使用 `buffs`）。`type` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`ce_attribute`（写入 CraftEngine 自定义属性持久词条，CE 26.8+）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（按配置的触发器发动 MythicMobs 技能，默认挥动），其他类型会拦截镶嵌并提示
 - `sx_attribute` 属性面板合并规则：
   - 物品原有属性行与所有宝石同类数值求和，显示为 `总值（+加成）`，如 `攻击力：33.90（+20）`
   - 宝石独有的属性自动追加新属性行
@@ -158,6 +158,7 @@ Drops:
 | `/mosaicgem debug [玩家]` | 查看物品的孔数、宝石、属性行等调试信息 | `mosaicgem.debug`（默认 OP） |
 | `/mosaicgem list <gem\|puncher\|remover>` | 列出已配置的物品 | `mosaicgem.list`（默认 OP） |
 | `/mosaicgem selftest` | 无玩家环境自检：配置解析、物品生成、数据读写、属性合并 | `mosaicgem.debug`（默认 OP） |
+| `/mosaicgem lore` | 翻转主手物品的宝石详细属性显示（镶嵌信息里的每颗宝石数值行；主条目保留；状态随物品保存，需要物品已镶嵌宝石） | `mosaicgem.lore`（默认 true，所有玩家） |
 
 指令别名：`/mg`、`/mgem`。
 
@@ -320,7 +321,9 @@ attribute-lore:
 | `socket-full` | 镶嵌：孔位已满 |
 | `socket-repeat-limit` | 镶嵌：达到重复镶嵌次数上限 |
 | `socket-gemtype-limit` | 镶嵌：同 gemtype 标签宝石达到全局上限（settings.gem-type-limit） |
-| `socket-bufftype-unsupported` | 镶嵌：buffType 不受支持 |
+| `socket-bufftype-unsupported` | 镶嵌：词条类型（type）不受支持（含 `{type}` 占位符） |
+| `lore-detail-on` / `lore-detail-off` | 指令 `/mosaicgem lore` 的开关结果提示 |
+| `lore-no-item` / `lore-no-gems` | 指令 `/mosaicgem lore` 的失败提示（空手 / 物品未镶嵌宝石） |
 | `remove-empty` | 拆卸：没有已镶嵌宝石 |
 | `remove-fail` | 拆卸：成功率失败（工具消耗） |
 | `remove-destroyed` | 拆卸：拆卸成功但宝石损毁判定命中（宝石消失，不返还） |
@@ -379,10 +382,11 @@ gems:
     remove-destroy-chance: 0    # 拆卸损毁概率 0-100%（缺省 0 = 永不损毁；与拆卸器成功率无关）
     random:
       random_value: '10.00~20.00'
-    buffType: 'sx_attribute'
-    attribute:
-      - '1: 攻击力: ${random_value}'   # 行首数字为标识符，与 LoreChange 中的键对应
-      - '2: 防御力: ${random_value}'
+    buffs:                           # v1.2+ 词条列表；旧版 buffType + attribute 仍兼容
+      - type: sx_attribute
+        attribute:
+          - '1: 攻击力: ${random_value}'   # 行首数字为标识符，与 LoreChange 中的键对应
+          - '2: 防御力: ${random_value}'
     LoreChange:                        # 标识符 → 属性名映射；无映射的属性不动作
       - 1: 攻击力
       - 2: 防御力
@@ -401,10 +405,11 @@ gems:
     repetitions: 5
     random:
       random_value: '5.00~10.00'
-    buffType: 'vanilla_attribute'
-    attribute:
-      - 'minecraft:attack_damage: ${random_value}'
-      - 'minecraft:attack_speed: 2'
+    buffs:
+      - type: vanilla_attribute
+        attribute:
+          - 'minecraft:attack_damage: ${random_value}'
+          - 'minecraft:attack_speed: 2'
 
   附魔测试宝石:
     material: PAPER
@@ -420,10 +425,11 @@ gems:
     repetitions: 5
     random:
       random_value: '1~5'
-    buffType: 'enchant'
-    attribute:
-      - 'minecraft:sharpness: ${random_value}'
-      - 'minecraft:unbreaking: 1'
+    buffs:
+      - type: enchant
+        attribute:
+          - 'minecraft:sharpness: ${random_value}'
+          - 'minecraft:unbreaking: 1'
 
   MM技能测试宝石:
     material: PAPER
@@ -437,15 +443,43 @@ gems:
     targetMaterial:
       - IRON_SWORD
     repetitions: 5
-    buffType: 'mythicmobs_skill'
-    attribute:
-      - 'TestSkill @onSwing'
+    buffs:
+      - type: mythicmobs_skill      # 一颗宝石可再叠其他词条，如 enchant / ce_attribute
+        attribute:
+          - 'TestSkill @onSwing'
+
+  # 复合宝石示例：一颗宝石同时携带 CE 属性 + 附魔 + 原版属性 + MM 技能
+  复合测试宝石:
+    material: NETHER_STAR
+    isEnchant: true
+    name: "&d复合测试宝石"
+    targetType:
+      - SWORD
+    repetitions: 1
+    random:
+      attack: '2.50~5.00'
+    remove-destroy-chance: 0
+    buffs:
+      - type: ce_attribute
+        attribute:
+          - '1: bakamc:strength: ${attack}'
+      - type: enchant
+        attribute:
+          - 'minecraft:sharpness: 3'
+      - type: vanilla_attribute
+        attribute:
+          - 'minecraft:attack_damage: ${attack}'
+      - type: mythicmobs_skill
+        attribute:
+          - 'TestSkill @onSwing'
+    LoreChange:
+      - 1: 力量
 ```
 
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
 - `gemtype`：宝石类型标签（字符串列表，可多个，如 `['攻击', '火属性']`）。配合 `config.yml` 的 `settings.gem-type-limit` 限制一件装备上同一标签宝石的数量上限；不填则为空列表，不参与类型计数
 - `remove-destroy-chance`：拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（缺省 0 = 永不损毁；越界自动钳制）。**与拆卸器成功率无关**：拆卸器判定成功后仍需独立过此判定，命中则宝石不返还
-- `attribute`：注入的属性行。行首数字为**标识符**（如 `1:`、`2:`），属性由宝石自己的 `LoreChange` 段声明映射（标识符 → 属性名），无映射的属性「不动作」；数值取对应属性行中的数值
+- `buffs[].attribute`：该词条注入的属性行（格式与旧版 attribute 完全一致）。行首数字为**标识符**（如 `1:`、`2:`），属性由宝石自己的 `LoreChange` 段声明映射（标识符 → 属性名），无映射的属性「不动作」；数值取对应属性行中的数值
 - `LoreChange`：属性面板合并且与 buff 类型无关——`attribute-lore` 段读取各宝石该映射，把对应属性的数值按「值 + 加成」规则合并进装备 lore（同属性求和、显示总值与加成）；`sx_attribute` / `vanilla_attribute` / `enchant` 等均适用
 - `sx_attribute`：属性行写进装备 lore，由 SX-Attribute 读取
 - `vanilla_attribute`：属性行直接附加为原版属性修饰符（同属性多宝石合并为一个修饰符，物品原生同属性修饰符合并进总值），**不会**修改/覆盖装备 lore
@@ -522,7 +556,7 @@ removers:
 
 **Q：属性不生效？**
 
-确认 `SX-Item` 与 `SX-Attribute` 已安装并启用，宝石的 `buffType` 为 `sx_attribute`，且装备属性面板中存在合并后的属性行；`vanilla_attribute` 宝石则检查物品属性面板中是否存在对应原版属性。
+确认 `SX-Item` 与 `SX-Attribute` 已安装并启用，宝石的词条 `type` 为 `sx_attribute`（`buffs` 格式），且装备属性面板中存在合并后的属性行；`vanilla_attribute` 宝石则检查物品属性面板中是否存在对应原版属性。
 
 **Q：`ce:` 附魔宝石不生效？**
 
@@ -534,11 +568,11 @@ removers:
 
 **Q：`mythicmobs_skill` 宝石技能不触发？**
 
-确认宝石的 `buffType` 为 `mythicmobs_skill`、`attribute` 中的技能名与 MythicMobs 中配置的技能完全一致，且该装备已镶嵌；安装 MythicCrucible 时由它的物品技能系统按 `@触发器` 触发（默认 `@onSwing`），未安装时仅近战攻击触发（`@onSwing` / `@onAttack` / `@onHit`）；技能冷却、条件、目标选择等由 MythicMobs 自行处理。
+确认宝石的词条 `type` 为 `mythicmobs_skill`、`attribute` 中的技能名与 MythicMobs 中配置的技能完全一致，且该装备已镶嵌；安装 MythicCrucible 时由它的物品技能系统按 `@触发器` 触发（默认 `@onSwing`），未安装时仅近战攻击触发（`@onSwing` / `@onAttack` / `@onHit`）；技能冷却、条件、目标选择等由 MythicMobs 自行处理。
 
 **Q：`ce_attribute` 宝石不生效？**
 
-确认 CraftEngine 26.8+ 已安装并启用（启动日志应出现「CraftEngine 属性桥接已启用」），宝石 `buffType` 为 `ce_attribute`，`attribute` 中的 CE 属性 id（如 `bakamc:strength`）已在 CraftEngine 的 `attributes` 配置中定义；镶嵌后属性会随物品持久化，穿戴装备即进入 CE 属性运算（词条 scope=weapon，显示在镶嵌信息与属性 lore，不显示在实体面板）。
+确认 CraftEngine 26.8+ 已安装并启用（启动日志应出现「CraftEngine 属性桥接已启用」），宝石的词条 `type` 为 `ce_attribute`，`attribute` 中的 CE 属性 id（如 `bakamc:strength`）已在 CraftEngine 的 `attributes` 配置中定义；镶嵌后属性会随物品持久化，穿戴装备即进入 CE 属性运算（词条 scope=weapon，显示在镶嵌信息与属性 lore，不显示在实体面板）。
 
 **Q：如何排查配置问题？**
 

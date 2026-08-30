@@ -17,6 +17,7 @@
 #   interaction-disabled        操作：该交互方式（铁砧/合成/拖拽）已在配置中禁用
 #   tool-config-missing         拖拽：工具在配置中不存在（配置被删改后常见）
 #   invalid-combination         拖拽：两个物品都是工具，或组合无效
+#   lore-*                      指令：/mosaicgem lore 翻转主手物品宝石详细属性显示（物品需已镶嵌宝石）
 #   inventory-full              返还宝石时背包已满，宝石掉落在脚边
 messages:
   prefix: '&8[&6MosaicGem&8] '
@@ -39,7 +40,7 @@ messages:
   socket-full: '&c镶嵌失败：该物品的孔位已满！'
   socket-repeat-limit: '&c该宝石已达到可重复镶嵌次数上限！'
   socket-gemtype-limit: '&c镶嵌失败：该物品上“{label}”类型宝石已达到上限（{limit}颗），无法镶嵌！'
-  socket-bufftype-unsupported: '&c镶嵌失败：该宝石的属性类型不受支持，无法镶嵌！'
+  socket-bufftype-unsupported: '&c镶嵌失败：该宝石的词条类型“{type}”不受支持，无法镶嵌！'
   remove-success: '&a宝石拆卸成功，宝石已返还。'
   remove-fail: '&c拆卸失败，拆卸器已消耗！'
   remove-empty: '&c拆卸失败：该物品没有已镶嵌的宝石！'
@@ -55,6 +56,12 @@ messages:
   help-debug: '&7/mosaicgem debug [玩家] &8- &f查看物品调试信息'
   help-list: '&7/mosaicgem list <gem|puncher|remover> &8- &f查看已配置物品'
   help-selftest: '&7/mosaicgem selftest &8- &f自检配置与数据读写'
+  help-lore: '&7/mosaicgem lore &8- &f切换主手物品宝石详情显示'
+  lore-player-only: '&c该指令只能由玩家执行！'
+  lore-no-item: '&c请先持有一件物品再使用 /mosaicgem lore！'
+  lore-no-gems: '&c该物品还没有镶嵌任何宝石！'
+  lore-detail-on: '&a已显示宝石详细属性。'
+  lore-detail-off: '&e已隐藏宝石详细属性（主条目保留），再次输入恢复显示。'
   debug-no-item: '&c{player} 主手没有物品'
   debug-title: '&7===== MosaicGem Debug ====='
   debug-holder: '&f持有者: &e{player}'
@@ -129,6 +136,8 @@ attribute-names:
   'bakamc:magic_power': 魔力
   'bakamc:physical_defense': 物防
   'bakamc:magic_defense': 魔防
+  'bakamc:critical_chance': 暴击率
+  'bakamc:critical_damage': 暴击伤害
 
 # 附魔 id -> 显示名映射（enchant 宝石镶嵌后，镶嵌信息 lore 用这里的中文名显示）
 # 原版附魔使用 minecraft: 前缀，CrazyEnchantments 自定义附魔使用 ce: 前缀（如 ce:Wither）

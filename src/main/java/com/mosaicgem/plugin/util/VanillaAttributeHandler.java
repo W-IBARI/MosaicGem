@@ -24,7 +24,7 @@ final class VanillaAttributeHandler implements BuffTypeHandler {
             return List.of();
         }
         List<String> result = new ArrayList<>();
-        for (String line : definition.getAttribute()) {
+        for (String line : definition.attributeLinesOf(ItemFactory.BUFF_TYPE_VANILLA)) {
             ItemFactory.VanillaAttribute attribute = ItemFactory.parseVanillaAttribute(line);
             if (attribute != null) {
                 result.add(factory.configs().attributeName(attribute.id())

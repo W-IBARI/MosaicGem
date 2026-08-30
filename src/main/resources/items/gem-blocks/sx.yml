@@ -23,11 +23,12 @@
     # 拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（默认 0 = 不损毁）。
     # 与拆卸器成功率无关：拆卸器判定成功后仍需独立过此判定，命中则宝石不返还。
     remove-destroy-chance: 0
-    buffType: 'sx_attribute'
-    attribute:
-      - '1: 攻击力: ${random_value}'
-      - '2: 防御力: ${random_value}'
+    # v1.2+ 词条列表（旧版 buffType + attribute 仍兼容，自动转单条词条）
+    buffs:
+      - type: sx_attribute
+        attribute:
+          - '1: 攻击力: ${random_value}'
+          - '2: 防御力: ${random_value}'
     LoreChange:
       - 1: 攻击力
       - 2: 防御力
-

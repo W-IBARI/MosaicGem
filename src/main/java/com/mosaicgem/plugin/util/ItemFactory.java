@@ -88,6 +88,7 @@ public class ItemFactory {
     private final NamespacedKey keyUuid;
     private final NamespacedKey keyCount;
     private final NamespacedKey keySources;
+    private final NamespacedKey keySocketLoreDetail;
 
     public ItemFactory(MosaicGemPlugin plugin, ConfigManager configs) {
         this.plugin = plugin;
@@ -106,6 +107,7 @@ public class ItemFactory {
         this.keyUuid = key("uuid");
         this.keyCount = key("count");
         this.keySources = key("sources");
+        this.keySocketLoreDetail = key("socketLoreDetail");
     }
 
     ConfigManager configs() {
@@ -537,11 +539,30 @@ public class ItemFactory {
     }
 
     /**
+     * 镶嵌信息是否显示宝石详细属性（{value_lines} 行）；缺省 true（详细）。
+     * 状态持久化在物品 PDC（mosaicgem:socketLoreDetail），由 /mosaicgem lore 翻转。
+     */
+    public boolean isSocketLoreDetailed(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return true;
+        }
+        return item.getPersistentDataContainer().getOrDefault(keySocketLoreDetail, PersistentDataType.BOOLEAN, true);
+    }
+
+    public void setSocketLoreDetailed(ItemStack item, boolean detailed) {
+        if (item == null || item.getType().isAir()) {
+            return;
+        }
+        item.editPersistentDataContainer(pdc -> pdc.set(keySocketLoreDetail, PersistentDataType.BOOLEAN, detailed));
+    }
+
+    /**
      * 更新装备上的镶嵌信息 lore：先移除旧信息，再按模版写入新信息。
      * 直接基于组件操作，避免把已有 lore 转成 legacy 字符串再重写，
      * 从而保留属性合并行的真实颜色/格式结构。
      */
     public void applySocketLore(ItemStack item, SocketData data, SocketLoreTemplate template) {
+        boolean detailed = isSocketLoreDetailed(item);
         List<Component> lore = item.lore() == null ? new ArrayList<>() : new ArrayList<>(item.lore());
         // 移除旧的镶嵌信息：新格式按行首标记移除
         lore.removeIf(line -> LegacyComponentSerializer.legacySection().serialize(line).startsWith(SOCKET_MARKER));
@@ -574,6 +595,9 @@ public class ItemFactory {
                             .replace("{id}", gem.id())
                             .replace("{values}", gemValues);
                     if (base.contains("{value_lines}")) {
+                        if (!detailed) {
+                            continue; // 已切换为简略模式：隐藏宝石详细属性行
+                        }
                         List<String> valueLines = resolveGemValueList(gem);
                         if (valueLines.isEmpty()) {
                             continue;
@@ -701,10 +725,10 @@ public class ItemFactory {
         Map<String, Double> totals = new LinkedHashMap<>();
         for (SocketedGem gem : gems) {
             GemDefinition definition = configs.getGem(gem.id());
-            if (definition == null || !BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())) {
+            if (definition == null) {
                 continue;
             }
-            for (String line : definition.getAttribute()) {
+            for (String line : definition.attributeLinesOf(BUFF_TYPE_VANILLA)) {
                 VanillaAttribute parsed = parseVanillaAttribute(line);
                 if (parsed == null) {
                     continue;
@@ -923,10 +947,10 @@ public class ItemFactory {
         Map<String, Integer> totals = new LinkedHashMap<>();
         for (SocketedGem gem : gems) {
             GemDefinition definition = configs.getGem(gem.id());
-            if (definition == null || !BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())) {
+            if (definition == null) {
                 continue;
             }
-            for (String line : definition.getAttribute()) {
+            for (String line : definition.attributeLinesOf(BUFF_TYPE_ENCHANT)) {
                 VanillaAttribute parsed = parseVanillaAttribute(line);
                 if (parsed == null) {
                     continue;

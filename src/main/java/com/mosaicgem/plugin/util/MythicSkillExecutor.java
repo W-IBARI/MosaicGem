@@ -47,10 +47,10 @@ public final class MythicSkillExecutor {
         boolean cast = false;
         for (SocketedGem gem : data.gems()) {
             GemDefinition definition = configs.getGem(gem.id());
-            if (definition == null || !ItemFactory.BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
+            if (definition == null) {
                 continue;
             }
-            for (String line : definition.getAttribute()) {
+            for (String line : definition.attributeLinesOf(ItemFactory.BUFF_TYPE_MM_SKILL)) {
                 MythicSkillLine.Entry entry = MythicSkillLine.parse(factory.resolve(line, gem.values()));
                 if (entry == null || !trigger.equals(entry.trigger())) {
                     continue;

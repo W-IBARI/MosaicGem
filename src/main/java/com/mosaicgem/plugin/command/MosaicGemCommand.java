@@ -68,6 +68,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             case "debug" -> debug(sender, args);
             case "list" -> list(sender, args);
             case "selftest" -> selftest(sender);
+            case "lore" -> lore(sender);
             default -> {
                 sendHelp(sender);
                 yield true;
@@ -262,6 +263,35 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 .replace("{type}", type.name().toLowerCase(Locale.ROOT))
                 .replace("{count}", String.valueOf(ids.size()))
                 .replace("{ids}", String.join(", ", ids)));
+        return true;
+    }
+
+    /**
+     * 翻转主手物品的宝石详细属性显隐（镶嵌信息 lore）；物品必须有已镶嵌宝石。
+     * 状态持久化在物品自身（mosaicgem:socketLoreDetail），再次输入恢复。
+     */
+    private boolean lore(CommandSender sender) {
+        if (!hasPermission(sender, "lore")) {
+            return true;
+        }
+        if (!(sender instanceof Player player)) {
+            send(sender, configs.message("lore-player-only"));
+            return true;
+        }
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType().isAir()) {
+            send(sender, configs.message("lore-no-item"));
+            return true;
+        }
+        SocketData data = factory.readSocketData(item);
+        if (data.gems().isEmpty()) {
+            send(sender, configs.message("lore-no-gems"));
+            return true;
+        }
+        boolean detailed = !factory.isSocketLoreDetailed(item);
+        factory.setSocketLoreDetailed(item, detailed);
+        factory.applySocketLore(item, data, configs.socketLore());
+        send(sender, configs.message(detailed ? "lore-detail-on" : "lore-detail-off"));
         return true;
     }
 
@@ -624,6 +654,44 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         }
 
         try {
+            // 宝石详情显隐（/mosaicgem lore 核心）：简略模式隐藏 {value_lines} 行、主条目保留；翻转恢复
+            ItemStack loreSword = new ItemStack(Material.IRON_SWORD);
+            Map<String, Integer> loreSources = new LinkedHashMap<>();
+            loreSources.put("测试打孔器", 1);
+            Map<String, String> loreValues = new LinkedHashMap<>();
+            loreValues.put("random_value", "15.00");
+            SocketedGem loreGem = new SocketedGem("SA测试宝石", "lore-toggle-uuid", loreValues, List.of());
+            factory.writeSocketData(loreSword, 1, loreSources, List.of(loreGem));
+            factory.applySocketLore(loreSword, new SocketData(1, loreSources, List.of(loreGem)), configs.socketLore());
+            long detailRows = loreSword.getItemMeta().getLore().stream()
+                    .filter(line -> ItemFactory.stripLoreText(line).contains("攻击力"))
+                    .count();
+            if (detailRows == 0) {
+                throw new IllegalStateException("详细模式应显示宝石详情行");
+            }
+            factory.setSocketLoreDetailed(loreSword, false);
+            factory.applySocketLore(loreSword, new SocketData(1, loreSources, List.of(loreGem)), configs.socketLore());
+            long hiddenRows = loreSword.getItemMeta().getLore().stream()
+                    .filter(line -> ItemFactory.stripLoreText(line).contains("攻击力"))
+                    .count();
+            if (hiddenRows != 0) {
+                throw new IllegalStateException("简略模式仍显示宝石详情: " + loreSword.getItemMeta().getLore());
+            }
+            factory.setSocketLoreDetailed(loreSword, true);
+            factory.applySocketLore(loreSword, new SocketData(1, loreSources, List.of(loreGem)), configs.socketLore());
+            long restoredRows = loreSword.getItemMeta().getLore().stream()
+                    .filter(line -> ItemFactory.stripLoreText(line).contains("攻击力"))
+                    .count();
+            if (restoredRows == 0) {
+                throw new IllegalStateException("重新开启后详情未恢复");
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "lore显隐: " + e.getMessage()));
+        }
+
+        try {
             // 完整往返：带 §X 标记与 <#RRGGBB> 的合并行写入物品后，颜色必须保留为 §x 十六进制码
             ItemStack colorRoundTrip = new ItemStack(Material.IRON_SWORD);
             factory.setLore(colorRoundTrip, List.of(
@@ -728,7 +796,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> result = new ArrayList<>();
         if (args.length == 1) {
-            result.addAll(List.of("reload", "give", "debug", "list", "selftest"));
+            result.addAll(List.of("reload", "give", "debug", "list", "selftest", "lore"));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
             result.addAll(configs.getGems().keySet());
             result.addAll(configs.getPunchers().keySet());
@@ -773,7 +841,8 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 + configs.message("help-give") + "\n"
                 + configs.message("help-debug") + "\n"
                 + configs.message("help-list") + "\n"
-                + configs.message("help-selftest"));
+                + configs.message("help-selftest") + "\n"
+                + configs.message("help-lore"));
     }
 
     private void send(CommandSender sender, String message) {

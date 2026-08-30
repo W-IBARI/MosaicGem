@@ -35,7 +35,7 @@ final class CeAttributeHandler implements BuffTypeHandler {
         }
         AttributeLoreConfig loreConfig = factory.configs().attributeLore();
         List<String> result = new ArrayList<>();
-        for (String line : definition.getAttribute()) {
+        for (String line : definition.attributeLinesOf(ItemFactory.BUFF_TYPE_CE)) {
             ItemFactory.VanillaAttribute attribute = ItemFactory.parseVanillaAttribute(line);
             if (attribute != null) {
                 String name = factory.configs().attributeName(attribute.id());
@@ -70,10 +70,10 @@ final class CeAttributeHandler implements BuffTypeHandler {
         List<CeAttributeBridge.Spec> result = new ArrayList<>();
         for (SocketedGem gem : gems) {
             GemDefinition definition = factory.configs().getGem(gem.id());
-            if (definition == null || !ItemFactory.BUFF_TYPE_CE.equalsIgnoreCase(definition.getBuffType())) {
+            if (definition == null) {
                 continue;
             }
-            for (String line : definition.getAttribute()) {
+            for (String line : definition.attributeLinesOf(ItemFactory.BUFF_TYPE_CE)) {
                 ItemFactory.VanillaAttribute parsed = ItemFactory.parseVanillaAttribute(line);
                 if (parsed == null) {
                     continue;

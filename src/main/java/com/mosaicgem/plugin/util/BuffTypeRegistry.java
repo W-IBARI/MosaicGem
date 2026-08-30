@@ -70,15 +70,19 @@ public final class BuffTypeRegistry {
         if (definition == null) {
             return List.of();
         }
-        BuffTypeHandler handler = get(definition.getBuffType());
-        if (handler != null) {
-            return handler.valueLines(gem, factory);
-        }
         List<String> result = new ArrayList<>();
-        for (String line : definition.getAttribute()) {
-            String text = ItemFactory.stripLoreText(factory.resolve(line, gem.values()));
-            if (!text.isEmpty()) {
-                result.add(text);
+        // 按词条类型顺序分发；同类型多条词条由 handler 内部按 attributeLinesOf 合并展示
+        for (String type : definition.buffTypes()) {
+            BuffTypeHandler handler = get(type);
+            if (handler != null) {
+                result.addAll(handler.valueLines(gem, factory));
+            } else {
+                for (String line : definition.attributeLinesOf(type)) {
+                    String text = ItemFactory.stripLoreText(factory.resolve(line, gem.values()));
+                    if (!text.isEmpty()) {
+                        result.add(text);
+                    }
+                }
             }
         }
         return result;

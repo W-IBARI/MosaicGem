@@ -17,7 +17,7 @@
     # 拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（不填默认 0 = 不损毁）；
     # 与拆卸器成功率无关，拆卸成功后仍需独立过此判定，命中则宝石不返还。
     remove-destroy-chance: 0
-    buffType: 'mythicmobs_skill'  # MythicMobs 技能：按 MythicCrucible 物品技能规则触发
-    attribute:
-      - 'TestSkill @onSwing'
-
+    buffs:
+      - type: mythicmobs_skill   # MythicMobs 技能：按 MythicCrucible 物品技能规则触发
+        attribute:
+          - 'TestSkill @onSwing'

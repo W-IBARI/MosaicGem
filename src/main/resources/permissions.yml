@@ -31,3 +31,8 @@ commands:
     default-level: op
     permissions:
       - mosaicgem.debug
+  lore:
+    # 玩家对自己物品的显示开关：默认所有玩家可用
+    default-level: true
+    permissions:
+      - mosaicgem.lore
