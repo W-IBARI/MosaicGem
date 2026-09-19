@@ -35,14 +35,13 @@ settings:
   # 与属性面板合并/加成的显示位数。0~10，缺省 2。
   value-decimal-places: 2
   # 外部值聚合策略：一件装备上多颗宝石出现同一个外部值名时如何合并
-  #   first  保留首个命中（默认）—— 适合原始 roll、概率、开关类值
-  #   sum    数值相加（小数位取参与求和者的最大位数），非数值退化为 first
+  #   first      保留首个命中（默认）—— 适合原始 roll、概率、开关类值
+  #   sum        数值相加（小数位取参与求和者的最大位数）—— 适合可叠加数值
+  #   max / min  取最大 / 最小值
+  # 需要按「值名」逐条指定策略时，请用独立文件 external-aggregate.yml（名单可能很长）：
+  #   default / keys.<值名> / prefixes.<前缀>
+  # 本项只作兜底；config.yml 里仍可写 external-aggregate-by-key，但优先级低于独立文件（旧写法）
   external-aggregate: first
-  # 按键覆盖上面的默认策略（key 为外部值名）
-  # 示例：
-  # external-aggregate-by-key:
-  #   总攻击力: sum
-  external-aggregate-by-key: {}
 
 # 装备上的镶嵌信息 lore（打孔/镶嵌/拆卸成功后自动更新）
 # 占位符：

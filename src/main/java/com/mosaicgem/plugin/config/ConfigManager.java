@@ -40,9 +40,18 @@ public class ConfigManager {
     private final Map<String, GemDefinition> gems = new LinkedHashMap<>();
     private final Map<String, PuncherDefinition> punchers = new LinkedHashMap<>();
     private final Map<String, RemoverDefinition> removers = new LinkedHashMap<>();
+    /** 外部值聚合策略表文件名（可长名单，独立成文件） */
+    private static final String AGGREGATE_FILE_NAME = "external-aggregate.yml";
+
     /** gemtype 标签全局数量限制（key: 标签名, value: 上限）。 */
     private Map<String, Integer> gemTypeLimits = new LinkedHashMap<>();
-    /** 外部值聚合策略按键覆盖（key: 外部值名, value: first/sum）。 */
+    /** 外部值聚合策略：精确名 -> 策略（来自独立文件 external-aggregate.yml） */
+    private final Map<String, String> externalAggregateModes = new LinkedHashMap<>();
+    /** 外部值聚合策略：前缀 -> 策略（来自独立文件，按长度倒序，便于取最长匹配） */
+    private final Map<String, String> externalAggregatePrefixes = new LinkedHashMap<>();
+    /** 外部值聚合策略：兜底（external-aggregate.yml 的 default -> config.yml 的 settings.external-aggregate -> first） */
+    private String externalAggregateDefault = "first";
+    /** 兼容旧写法：config.yml 的 settings.external-aggregate-by-key（优先级低于独立文件的同名键） */
     private final Map<String, String> externalAggregateByKey = new LinkedHashMap<>();
     /** 物品类型 -> 孔数上限（层级 2：覆盖全局 settings.max-holes）。 */
     private final Map<String, Integer> maxHolesByType = new LinkedHashMap<>();
@@ -82,17 +91,8 @@ public class ConfigManager {
             }
         }
 
-        // 解析 settings.external-aggregate-by-key（外部值聚合策略按键覆盖）
-        externalAggregateByKey.clear();
-        ConfigurationSection aggregateSection = config.getConfigurationSection("settings.external-aggregate-by-key");
-        if (aggregateSection != null) {
-            for (String key : aggregateSection.getKeys(false)) {
-                String mode = aggregateSection.getString(key);
-                if (mode != null && !mode.isBlank()) {
-                    externalAggregateByKey.put(key, mode.trim().toLowerCase(Locale.ROOT));
-                }
-            }
-        }
+        // 外部值聚合策略：优先独立文件 external-aggregate.yml（名单可能很长），config.yml 旧键表仅作兼容
+        loadExternalAggregate();
 
         // 解析孔数上限分层：类型（层级 2）与物品 id（层级 3）
         maxHolesByType.clear();
@@ -385,19 +385,109 @@ public class ConfigManager {
      * 外部值的聚合策略：同一件装备上多颗宝石出现同一个外部值名时如何合并。
      * <ul>
      *   <li>{@code first}：保留首个命中（默认）——适合原始 roll、概率、开关类值</li>
-     *   <li>{@code sum}：数值相加（小数位取参与求和者的最大位数），非数值退化为 first</li>
+     *   <li>{@code sum}：数值相加（小数位取参与求和者的最大位数）</li>
+     *   <li>{@code max} / {@code min}：取最大 / 最小值（数值）</li>
      * </ul>
-     * 取值顺序：{@code settings.external-aggregate-by-key.<值名>} -> {@code settings.external-aggregate} -> first。
+     * 非数值遇到 sum/max/min 会自动退化为 first。
+     * 取值顺序：独立文件 external-aggregate.yml 的 keys（精确）
+     *          -> config.yml 的 settings.external-aggregate-by-key（兼容）
+     *          -> external-aggregate.yml 的 prefixes（最长前缀）
+     *          -> external-aggregate.yml 的 default / config.yml 的 settings.external-aggregate -> first。
      */
     public String externalAggregateMode(String key) {
-        String mode = key == null ? null : externalAggregateByKey.get(key);
-        if (mode == null) {
-            mode = config.getString("settings.external-aggregate", "first");
+        if (key == null || key.isEmpty()) {
+            return externalAggregateDefault;
         }
-        if (mode == null) {
+        String exact = externalAggregateModes.get(key);
+        if (exact != null) {
+            return exact;
+        }
+        String legacy = externalAggregateByKey.get(key);
+        if (legacy != null) {
+            return legacy;
+        }
+        String matched = null;
+        int matchedLength = -1;
+        for (Map.Entry<String, String> entry : externalAggregatePrefixes.entrySet()) {
+            String prefix = entry.getKey();
+            if (prefix.isEmpty() || !key.startsWith(prefix)) {
+                continue;
+            }
+            if (prefix.length() > matchedLength) {
+                matchedLength = prefix.length();
+                matched = entry.getValue();
+            }
+        }
+        return matched != null ? matched : externalAggregateDefault;
+    }
+
+    /**
+     * 读取独立的「外部值聚合策略表」。
+     * 文件缺失时从 jar 内置模板释放一份（便于直接编辑：名单可能很长）。
+     * 策略的解析与匹配全在本层完成，PAPI 占位符与 socketvalue 等消费端不需要各自判断。
+     */
+    private void loadExternalAggregate() {
+        externalAggregateModes.clear();
+        externalAggregatePrefixes.clear();
+        externalAggregateByKey.clear();
+        externalAggregateDefault = normalizeAggregateMode(config.getString("settings.external-aggregate", "first"));
+
+        File file = new File(plugin.getDataFolder(), AGGREGATE_FILE_NAME);
+        if (!file.exists()) {
+            try {
+                plugin.saveResource(AGGREGATE_FILE_NAME, false);
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("未找到内置的 " + AGGREGATE_FILE_NAME + " 模板，跳过释放");
+            }
+        }
+        if (file.exists()) {
+            YamlConfiguration aggregate = YamlConfiguration.loadConfiguration(file);
+            String def = aggregate.getString("default");
+            if (def != null && !def.isBlank()) {
+                externalAggregateDefault = normalizeAggregateMode(def);
+            }
+            ConfigurationSection keys = aggregate.getConfigurationSection("keys");
+            if (keys != null) {
+                for (String name : keys.getKeys(false)) {
+                    externalAggregateModes.put(name, normalizeAggregateMode(String.valueOf(keys.get(name))));
+                }
+            }
+            List<Map.Entry<String, String>> prefixes = new ArrayList<>();
+            ConfigurationSection prefixSection = aggregate.getConfigurationSection("prefixes");
+            if (prefixSection != null) {
+                for (String name : prefixSection.getKeys(false)) {
+                    prefixes.add(Map.entry(name, normalizeAggregateMode(String.valueOf(prefixSection.get(name)))));
+                }
+            }
+            prefixes.sort((left, right) -> Integer.compare(right.getKey().length(), left.getKey().length()));
+            for (Map.Entry<String, String> entry : prefixes) {
+                externalAggregatePrefixes.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        // 兼容：旧的 config.yml settings.external-aggregate-by-key（优先级低于独立文件同名键）
+        ConfigurationSection legacy = config.getConfigurationSection("settings.external-aggregate-by-key");
+        if (legacy != null) {
+            for (String name : legacy.getKeys(false)) {
+                String mode = legacy.getString(name);
+                if (mode != null && !mode.isBlank()) {
+                    externalAggregateByKey.put(name, normalizeAggregateMode(mode));
+                }
+            }
+        }
+    }
+
+    /** 策略名归一化（支持中文写法）；无法识别一律按 first 处理。 */
+    private static String normalizeAggregateMode(String raw) {
+        if (raw == null) {
             return "first";
         }
-        return "sum".equals(mode.trim().toLowerCase(Locale.ROOT)) ? "sum" : "first";
+        return switch (raw.trim().toLowerCase(Locale.ROOT)) {
+            case "sum", "add", "相加", "求和", "叠加" -> "sum";
+            case "max", "最大", "最高", "取大" -> "max";
+            case "min", "最小", "最低", "取小" -> "min";
+            default -> "first";
+        };
     }
 
     /**

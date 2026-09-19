@@ -282,9 +282,11 @@ public class ItemFactory {
     }
 
     /**
-     * 按聚合策略合并一组宝石的外部值（装备级聚合与占位符跳槽位合并共用）：
-     * 按传入顺序遍历，同名键默认保留首个（first），config.yml 的 settings.external-aggregate(-by-key)
-     * 为 sum 时数值相加（小数位取参与求和者的最大位数），非数值退化为 first。
+     * 按聚合策略合并一组宝石的外部值（装备级聚合与占位符跳槽位合并共用）。
+     * 同名键的策略由 ConfigManager 从 external-aggregate.yml 解析：
+     * first 保留首个 / sum 相加 / max / min；非数值遇到后三者退化为 first。
+     * 这里是唯一的“命中策略”实现点——PAPI 占位符与 socketvalue 都直接用合并结果，
+     * 消费端不需要也不应该各自判断策略。
      */
     public Map<String, String> mergeExternalValues(List<SocketedGem> gems) {
         Map<String, String> aggregate = new LinkedHashMap<>();
@@ -301,16 +303,23 @@ public class ItemFactory {
                     decimals.put(name, decimalsOf(value));
                     continue;
                 }
-                if (!"sum".equals(configs.externalAggregateMode(name))) {
+                String mode = configs.externalAggregateMode(name);
+                if ("first".equals(mode)) {
                     continue;
                 }
                 Double first = toDouble(aggregate.get(name));
                 Double second = toDouble(value);
                 if (first == null || second == null) {
+                    // 非数值遇到 sum/max/min 一律退化为 first
                     continue;
                 }
+                double merged = switch (mode) {
+                    case "max" -> Math.max(first, second);
+                    case "min" -> Math.min(first, second);
+                    default -> first + second;
+                };
                 int places = Math.max(decimals.getOrDefault(name, 0), decimalsOf(value));
-                aggregate.put(name, String.format(Locale.ROOT, "%." + places + "f", first + second));
+                aggregate.put(name, String.format(Locale.ROOT, "%." + places + "f", merged));
                 decimals.put(name, places);
             }
         }

@@ -49,7 +49,7 @@
 #     ！接口约定（键名/取值优先级/语义）见 AI工作\GemBridge\README.md（读取方：GemBridge 的 socketvalue）
 #     宝石生成时求值一次并写入物品数据，镶嵌时复制到装备；不参与 lore 展示，玩家看不到
 #     数据位置：物品 PDC 的 mosaicgem:external（宝石物品上为自己的值；装备上为全部宝石按
-#     策略合并后的聚合值，策略见 config.yml 的 settings.external-aggregate）
+#     策略合并后的聚合值，策略表见 external-aggregate.yml，由取值层统一处理）
 #     读取方式：物品 PDC / PlaceholderAPI 占位符 / 插件 API
 
 gems:

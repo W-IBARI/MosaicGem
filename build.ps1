@@ -91,6 +91,7 @@ if ($LASTEXITCODE -ne 0) {
 # ---- 资源 ----
 Copy-Item -LiteralPath (Join-Path $resDir 'config.yml') -Destination $outDir -Force
 Copy-Item -LiteralPath (Join-Path $resDir 'permissions.yml') -Destination $outDir -Force
+Copy-Item -LiteralPath (Join-Path $resDir 'external-aggregate.yml') -Destination $outDir -Force
 foreach ($dir in @('messages', 'items')) {
     $target = Join-Path $outDir $dir
     New-Item -ItemType Directory -Force -Path $target | Out-Null

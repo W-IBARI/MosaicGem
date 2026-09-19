@@ -120,21 +120,27 @@ public final class MosaicGemExpansion extends PlaceholderExpansion {
     }
 
     /**
-     * 单个物品取值：未指定宝石时读装备级聚合值；指定宝石时读该宝石实例的外部值。
+     * 单个物品取值：装备走「实时按策略合并」，宝石物品走物品级外部值容器。
+     * 实时合并的好处：改 external-aggregate.yml 后 /mg reload 即可生效，无需重新镶嵌。
      */
     private String lookup(ItemStack item, String gemName, String key) {
         if (item == null || item.getType().isAir()) {
             return "";
         }
-        if (gemName == null || gemName.isBlank()) {
-            return factory.readExternal(item).getOrDefault(key, "");
+        SocketData data = factory.readSocketData(item);
+        if (!data.gems().isEmpty()) {
+            if (gemName == null || gemName.isBlank()) {
+                return factory.mergeExternalValues(data.gems()).getOrDefault(key, "");
+            }
+            SocketedGem gem = findGem(data, gemName);
+            return gem == null ? "" : gem.external().getOrDefault(key, "");
         }
-        SocketedGem gem = findGem(factory.readSocketData(item), gemName);
-        return gem == null ? "" : gem.external().getOrDefault(key, "");
+        // 宝石物品（工具）等没有镶嵌数据，直接读物品级外部值
+        return factory.readExternal(item).getOrDefault(key, "");
     }
 
     /**
-     * 遍历全部装备槽位：把匹配的宝石收集起来，按 config 的聚合策略合并后取值。
+     * 遍历全部装备槽位：把匹配的宝石收集起来，在取值层按策略合并后取值（实时，不读烘焙值）。
      */
     private String lookupAll(Player player, String gemName, String key) {
         List<SocketedGem> gems = new ArrayList<>();

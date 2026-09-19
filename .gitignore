@@ -5,6 +5,9 @@ build/
 # 构建产物（工作目录根下散落的插件 jar；发布 jar 走 GitHub Releases 资产，不入库）
 /MosaicGem-*.jar
 
+# 免 Gradle 构建脚本（build.ps1）的产物目录
+target/
+
 # 开发需求文档（本地保留，不入库）
 插件开发需求/
 
@@ -16,6 +19,3 @@ build/
 # 系统文件
 Thumbs.db
 .DS_Store
-
-# 构建脚本产物（build.ps1）
-target/
