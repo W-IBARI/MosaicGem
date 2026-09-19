@@ -42,6 +42,8 @@ public class ConfigManager {
     private final Map<String, RemoverDefinition> removers = new LinkedHashMap<>();
     /** gemtype 标签全局数量限制（key: 标签名, value: 上限）。 */
     private Map<String, Integer> gemTypeLimits = new LinkedHashMap<>();
+    /** 外部值聚合策略按键覆盖（key: 外部值名, value: first/sum）。 */
+    private final Map<String, String> externalAggregateByKey = new LinkedHashMap<>();
     /** 物品类型 -> 孔数上限（层级 2：覆盖全局 settings.max-holes）。 */
     private final Map<String, Integer> maxHolesByType = new LinkedHashMap<>();
     /** 物品 id（材质大写名）-> 孔数上限（层级 3：覆盖类型与全局）。 */
@@ -77,6 +79,18 @@ public class ConfigManager {
         if (gemTypeLimitSection != null) {
             for (String key : gemTypeLimitSection.getKeys(false)) {
                 gemTypeLimits.put(key, Math.max(0, gemTypeLimitSection.getInt(key)));
+            }
+        }
+
+        // 解析 settings.external-aggregate-by-key（外部值聚合策略按键覆盖）
+        externalAggregateByKey.clear();
+        ConfigurationSection aggregateSection = config.getConfigurationSection("settings.external-aggregate-by-key");
+        if (aggregateSection != null) {
+            for (String key : aggregateSection.getKeys(false)) {
+                String mode = aggregateSection.getString(key);
+                if (mode != null && !mode.isBlank()) {
+                    externalAggregateByKey.put(key, mode.trim().toLowerCase(Locale.ROOT));
+                }
             }
         }
 
@@ -168,11 +182,27 @@ public class ConfigManager {
             }
         }
 
-        messageDefaults = bundledMessages("messages/" + DEFAULT_LANGUAGE + ".yml");
-        if (messageDefaults != null) {
-            loaded.setDefaults(messageDefaults);
+        messageDefaults = bundledMessages("messages/" + language + ".yml");
+        if (messageDefaults == null) {
+            messageDefaults = bundledMessages("messages/" + DEFAULT_LANGUAGE + ".yml");
         }
-        return loaded;
+        if (messageDefaults == null) {
+            return loaded;
+        }
+        // 以 jar 内置文案打底、数据目录文件覆盖：这样后续版本新增的文案无需手动补进数据目录。
+        // （注意：读取时用的是 getString(path, def)，带默认值的重载不会走 setDefaults，所以必须真正合并）
+        YamlConfiguration merged = new YamlConfiguration();
+        for (String key : messageDefaults.getKeys(true)) {
+            if (!messageDefaults.isConfigurationSection(key)) {
+                merged.set(key, messageDefaults.get(key));
+            }
+        }
+        for (String key : loaded.getKeys(true)) {
+            if (!loaded.isConfigurationSection(key)) {
+                merged.set(key, loaded.get(key));
+            }
+        }
+        return merged;
     }
 
     /**
@@ -349,6 +379,25 @@ public class ConfigManager {
             }
         }
         return maxHoles();
+    }
+
+    /**
+     * 外部值的聚合策略：同一件装备上多颗宝石出现同一个外部值名时如何合并。
+     * <ul>
+     *   <li>{@code first}：保留首个命中（默认）——适合原始 roll、概率、开关类值</li>
+     *   <li>{@code sum}：数值相加（小数位取参与求和者的最大位数），非数值退化为 first</li>
+     * </ul>
+     * 取值顺序：{@code settings.external-aggregate-by-key.<值名>} -> {@code settings.external-aggregate} -> first。
+     */
+    public String externalAggregateMode(String key) {
+        String mode = key == null ? null : externalAggregateByKey.get(key);
+        if (mode == null) {
+            mode = config.getString("settings.external-aggregate", "first");
+        }
+        if (mode == null) {
+            return "first";
+        }
+        return "sum".equals(mode.trim().toLowerCase(Locale.ROOT)) ? "sum" : "first";
     }
 
     /**

@@ -75,6 +75,8 @@ messages:
   debug-holes: '&fHoles: &e{holes} &7/ Socketed: &e{gems}'
   debug-socketed-gems: '&fSocketed gems:'
   debug-injected-line: '&7Injected: {line}'
+  debug-external-values: '&fExternal values:'
+  debug-external-value: '&7External {name} = &e{value}'
   debug-component-keys: '&fComponent keys: {keys}'
   debug-end: '&7===== Debug End ====='
   list-result: '&a{type} ({count}): &f{ids}'

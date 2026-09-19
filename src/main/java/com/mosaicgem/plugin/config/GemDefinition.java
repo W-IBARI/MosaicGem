@@ -30,6 +30,15 @@ public class GemDefinition extends ItemDefinition {
      */
     private final List<String> gemType;
     private final Map<String, String> loreChange;
+    /**
+     * 外部值（供外部插件取用）：值名 -> 表达式模板；宝石生成时求值一次写入物品 PDC，
+     * 镶嵌时复制到装备，供 PlaceholderAPI / MythicMobs / 其它插件按契约读取。
+     * 配置键兼容 external-values / external / 外部值；支持 map 段与列表（与 LoreChange 同构）两种写法。
+     */
+    private final Map<String, String> external;
+
+    /** 「外部值」段支持的配置键（按优先级） */
+    private static final List<String> EXTERNAL_KEYS = List.of("external-values", "external", "外部值");
 
     public GemDefinition(String id, ConfigurationSection section) {
         super(id, section);
@@ -57,6 +66,44 @@ public class GemDefinition extends ItemDefinition {
                 }
             }
         }
+        this.external = parseExternal(section);
+    }
+
+    /**
+     * 解析「外部值」段：值名 -> 表达式模板（此阶段不求值，生成宝石时才求值）。
+     * 兼容 external-values / external / 外部值 三个键；优先 map 段，其次列表写法。
+     */
+    private static Map<String, String> parseExternal(ConfigurationSection section) {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (String name : EXTERNAL_KEYS) {
+            ConfigurationSection mapSection = section.getConfigurationSection(name);
+            if (mapSection == null) {
+                continue;
+            }
+            for (String key : mapSection.getKeys(false)) {
+                String value = mapSection.getString(key);
+                if (value != null && !value.isBlank()) {
+                    result.put(key, value.trim());
+                }
+            }
+            return result;
+        }
+        for (String name : EXTERNAL_KEYS) {
+            for (Map<?, ?> entry : section.getMapList(name)) {
+                for (Map.Entry<?, ?> pair : entry.entrySet()) {
+                    if (pair.getKey() != null && pair.getValue() != null) {
+                        String value = String.valueOf(pair.getValue()).trim();
+                        if (!value.isEmpty()) {
+                            result.put(String.valueOf(pair.getKey()).trim(), value);
+                        }
+                    }
+                }
+            }
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
+        return result;
     }
 
     /**
@@ -171,5 +218,13 @@ public class GemDefinition extends ItemDefinition {
      */
     public Map<String, String> getLoreChange() {
         return loreChange;
+    }
+
+    /**
+     * 外部值模板（值名 -> 表达式模板，保序）。供外部插件取用的值统一写在这里，
+     * 不再依赖 lore 文本行；宝石生成时求值并固化到物品数据。
+     */
+    public Map<String, String> getExternal() {
+        return external;
     }
 }

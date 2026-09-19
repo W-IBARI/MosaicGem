@@ -87,6 +87,36 @@ public final class MosaicGemPlugin extends JavaPlugin {
             pluginCommand.setTabCompleter(command);
         }
 
+        // MythicMobs 的 socketvalue mechanic：反射加载实现类（该类是本插件唯一引用 MM 类型的文件），
+        // MM 缺失 / 版本不符 / 构建时未编译该文件时，只跳过这一项，其余功能照常
+        if (mythicMobsAvailable) {
+            try {
+                Class<?> bridge = Class.forName("com.mosaicgem.plugin.hook.mm.MythicMechanicBridge");
+                bridge.getMethod("setup", MosaicGemPlugin.class).invoke(null, this);
+            } catch (ClassNotFoundException e) {
+                getLogger().warning("未找到 MythicMobs 集成类（构建时可能未编译），socketvalue 不可用");
+            } catch (Throwable t) {
+                getLogger().warning("初始化 socketvalue 失败: " + t);
+            }
+        }
+
+        // PlaceholderAPI 为软依赖：反射加载扩展类（该类是本插件唯一引用 PAPI 类型的文件），
+        // 未安装 / 构建时未编译该文件时静默跳过
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            try {
+                Class<?> expansionClass = Class.forName("com.mosaicgem.plugin.hook.MosaicGemExpansion");
+                Object expansion = expansionClass
+                        .getConstructor(MosaicGemPlugin.class, ConfigManager.class, ItemFactory.class)
+                        .newInstance(this, configManager, itemFactory);
+                expansionClass.getMethod("register").invoke(expansion);
+                getLogger().info("已注册 PlaceholderAPI 占位符：%mosaicgem_<值名>%");
+            } catch (ClassNotFoundException e) {
+                getLogger().warning("未找到 PlaceholderAPI 扩展类（构建时可能未编译），占位符不可用");
+            } catch (Throwable t) {
+                getLogger().warning("注册 PlaceholderAPI 占位符失败: " + t);
+            }
+        }
+
         getLogger().info("MosaicGem 已启用 (Folia " + Bukkit.getBukkitVersion() + ")，当前语言: " + configManager.language());
     }
 

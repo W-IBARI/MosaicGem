@@ -34,6 +34,15 @@ settings:
   # 数值显示的小数位数：表达式占位符结果（如 ${crit*100,0} 的默认位数）
   # 与属性面板合并/加成的显示位数。0~10，缺省 2。
   value-decimal-places: 2
+  # 外部值聚合策略：一件装备上多颗宝石出现同一个外部值名时如何合并
+  #   first  保留首个命中（默认）—— 适合原始 roll、概率、开关类值
+  #   sum    数值相加（小数位取参与求和者的最大位数），非数值退化为 first
+  external-aggregate: first
+  # 按键覆盖上面的默认策略（key 为外部值名）
+  # 示例：
+  # external-aggregate-by-key:
+  #   总攻击力: sum
+  external-aggregate-by-key: {}
 
 # 装备上的镶嵌信息 lore（打孔/镶嵌/拆卸成功后自动更新）
 # 占位符：

@@ -76,6 +76,8 @@ messages:
   debug-holes: '&f孔数: &e{holes} &7/ 已镶嵌: &e{gems}'
   debug-socketed-gems: '&f已镶嵌宝石:'
   debug-injected-line: '&7注入: {line}'
+  debug-external-values: '&f外部值:'
+  debug-external-value: '&7外部值 {name} = &e{value}'
   debug-component-keys: '&f组件键: {keys}'
   debug-end: '&7===== Debug End ====='
   list-result: '&a{type} ({count}): &f{ids}'

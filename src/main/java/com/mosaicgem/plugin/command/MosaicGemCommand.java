@@ -225,10 +225,21 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             for (SocketedGem gem : socketData.gems()) {
                 lines.add("  &7- &e" + gem.id() + " &7(" + gem.instanceId().substring(0, 8) + ")");
                 gem.values().forEach((name, value) -> lines.add("      &7" + name + " = &e" + value));
+                if (!gem.external().isEmpty()) {
+                    gem.external().forEach((name, value) -> lines.add("      " + configs.message("debug-external-value")
+                            .replace("{name}", name)
+                            .replace("{value}", value)));
+                }
                 for (String line : gem.lines()) {
                     lines.add("      " + configs.message("debug-injected-line").replace("{line}", line));
                 }
             }
+        }
+
+        Map<String, String> itemExternal = factory.readExternal(item);
+        if (!itemExternal.isEmpty()) {
+            lines.add(configs.message("debug-external-values"));
+            itemExternal.forEach((name, value) -> lines.add("  &7" + name + " = &e" + value));
         }
 
         PersistentDataContainerView pdc = item.getPersistentDataContainer();
@@ -357,7 +368,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             ItemStack sword = new ItemStack(Material.IRON_SWORD);
             Map<String, String> values = new LinkedHashMap<>();
             values.put("random_value", "15.23");
-            SocketedGem gem = new SocketedGem("测试宝石", "test-uuid", values, List.of("攻击力：15.23"));
+            SocketedGem gem = new SocketedGem("测试宝石", "test-uuid", values, Map.of(), List.of("攻击力：15.23"));
             Map<String, Integer> sources = new LinkedHashMap<>();
             sources.put("测试打孔器", 1);
             factory.writeSocketData(sword, 1, sources, List.of(gem));
@@ -394,7 +405,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             )));
             Map<String, String> gemValues = new LinkedHashMap<>();
             gemValues.put("random_value", "20.00");
-            SocketedGem gem = new SocketedGem("SA测试宝石", "test-uuid-merge", gemValues, List.of());
+            SocketedGem gem = new SocketedGem("SA测试宝石", "test-uuid-merge", gemValues, Map.of(), List.of());
             Map<String, Integer> sources = new LinkedHashMap<>();
             sources.put("测试打孔器", 1);
             factory.writeSocketData(sword, 1, sources, List.of(gem));
@@ -443,7 +454,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             // 第二颗宝石：应更新原属性行而不是新增一行，括号取小数位最多的宝石位数
             Map<String, String> gemValues2 = new LinkedHashMap<>();
             gemValues2.put("random_value", "20.00");
-            SocketedGem gem2 = new SocketedGem("SA测试宝石", "test-uuid-merge-2", gemValues2, List.of());
+            SocketedGem gem2 = new SocketedGem("SA测试宝石", "test-uuid-merge-2", gemValues2, Map.of(), List.of());
             attributeLoreService.update(sword, List.of(gem, gem2));
             factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem, gem2)), configs.socketLore());
             List<String> loreAfterSecond = sword.getItemMeta().getLore();
@@ -499,8 +510,8 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             vanillaValues1.put("random_value", "5.00");
             Map<String, String> vanillaValues2 = new LinkedHashMap<>();
             vanillaValues2.put("random_value", "6.00");
-            SocketedGem vanillaGem1 = new SocketedGem(vanillaDefinition.getId(), "v-uuid-1", vanillaValues1, List.of());
-            SocketedGem vanillaGem2 = new SocketedGem(vanillaDefinition.getId(), "v-uuid-2", vanillaValues2, List.of());
+            SocketedGem vanillaGem1 = new SocketedGem(vanillaDefinition.getId(), "v-uuid-1", vanillaValues1, Map.of(), List.of());
+            SocketedGem vanillaGem2 = new SocketedGem(vanillaDefinition.getId(), "v-uuid-2", vanillaValues2, Map.of(), List.of());
 
             factory.rebuildVanillaAttributes(vanillaSword, List.of(vanillaGem1, vanillaGem2));
             ItemAttributeModifiers mods = vanillaSword.getData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
@@ -552,8 +563,8 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             enchantValues1.put("random_value", "3");
             Map<String, String> enchantValues2 = new LinkedHashMap<>();
             enchantValues2.put("random_value", "4");
-            SocketedGem enchantGem1 = new SocketedGem(enchantDefinition.getId(), "e-uuid-1", enchantValues1, List.of());
-            SocketedGem enchantGem2 = new SocketedGem(enchantDefinition.getId(), "e-uuid-2", enchantValues2, List.of());
+            SocketedGem enchantGem1 = new SocketedGem(enchantDefinition.getId(), "e-uuid-1", enchantValues1, Map.of(), List.of());
+            SocketedGem enchantGem2 = new SocketedGem(enchantDefinition.getId(), "e-uuid-2", enchantValues2, Map.of(), List.of());
 
             factory.rebuildEnchantments(enchantSword, List.of(enchantGem1, enchantGem2));
             if (enchantSword.getEnchantmentLevel(sharpness) != 9) {
@@ -576,7 +587,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 throw new IllegalStateException("enchant-names 映射未生效: " + mappedName);
             }
             List<String> displayLines = factory.resolveGemValueList(
-                    new SocketedGem(enchantDefinition.getId(), "e-uuid-display", enchantValues1, List.of()));
+                    new SocketedGem(enchantDefinition.getId(), "e-uuid-display", enchantValues1, Map.of(), List.of()));
             if (displayLines.isEmpty() || ItemFactory.stripLoreText(displayLines.get(0)).contains("minecraft:")) {
                 throw new IllegalStateException("镶嵌信息显示了附魔内部名: " + displayLines);
             }
@@ -593,7 +604,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 throw new IllegalStateException("缺少 MM 技能测试宝石配置");
             }
             List<String> skillLines = factory.resolveGemValueList(
-                    new SocketedGem(mmDefinition.getId(), "mm-uuid-display", Map.of(), List.of()));
+                    new SocketedGem(mmDefinition.getId(), "mm-uuid-display", Map.of(), Map.of(), List.of()));
             if (!skillLines.contains("TestSkill")) {
                 throw new IllegalStateException("MM 技能宝石信息未显示技能名: " + skillLines);
             }
@@ -660,7 +671,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             loreSources.put("测试打孔器", 1);
             Map<String, String> loreValues = new LinkedHashMap<>();
             loreValues.put("random_value", "15.00");
-            SocketedGem loreGem = new SocketedGem("SA测试宝石", "lore-toggle-uuid", loreValues, List.of());
+            SocketedGem loreGem = new SocketedGem("SA测试宝石", "lore-toggle-uuid", loreValues, Map.of(), List.of());
             factory.writeSocketData(loreSword, 1, loreSources, List.of(loreGem));
             factory.applySocketLore(loreSword, new SocketData(1, loreSources, List.of(loreGem)), configs.socketLore());
             long detailRows = loreSword.getItemMeta().getLore().stream()
@@ -715,7 +726,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 mergedSword.editMeta(meta -> meta.lore(List.of(Component.text("攻击力：13.90"))));
                 Map<String, String> bonusValues = new LinkedHashMap<>();
                 bonusValues.put("random_value", "20.00");
-                SocketedGem bonusGem = new SocketedGem("SA测试宝石", "hex-bonus-uuid", bonusValues, List.of());
+                SocketedGem bonusGem = new SocketedGem("SA测试宝石", "hex-bonus-uuid", bonusValues, Map.of(), List.of());
                 AttributeLoreService loreService = new AttributeLoreService(configs, factory);
                 loreService.update(mergedSword, List.of(bonusGem));
                 String mergedLegacy = mergedSword.getItemMeta().getLore().stream()
@@ -730,6 +741,35 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         } catch (Exception e) {
             fail++;
             lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "配置颜色: " + e.getMessage()));
+        }
+
+        try {
+            // 外部值：写入 / 聚合（默认 first 保留首个命中）/ 拆卸后重建 / 无值不写容器
+            ItemStack externalSword = new ItemStack(Material.IRON_SWORD);
+            SocketedGem firstGem = new SocketedGem("测试宝石", "ext-uuid-1", Map.of("roll", "0.70"),
+                    Map.of("roll", "0.70", "标签", "甲"), List.of());
+            SocketedGem secondGem = new SocketedGem("测试宝石", "ext-uuid-2", Map.of("roll", "0.90"),
+                    Map.of("roll", "0.90"), List.of());
+            factory.writeSocketData(externalSword, 2, Map.of("测试打孔器", 2), List.of(firstGem, secondGem));
+            factory.rebuildExternalValues(externalSword, List.of(firstGem, secondGem));
+            Map<String, String> aggregated = factory.readExternal(externalSword);
+            if (!"0.70".equals(aggregated.get("roll")) || !"甲".equals(aggregated.get("标签"))) {
+                throw new IllegalStateException("外部值聚合异常（默认 first）: " + aggregated);
+            }
+            factory.rebuildExternalValues(externalSword, List.of(secondGem));
+            if (!"0.90".equals(factory.readExternal(externalSword).get("roll"))) {
+                throw new IllegalStateException("外部值未按剩余宝石重建: " + factory.readExternal(externalSword));
+            }
+            ItemStack plainSword = new ItemStack(Material.IRON_SWORD);
+            factory.rebuildExternalValues(plainSword,
+                    List.of(new SocketedGem("测试宝石", "ext-uuid-none", Map.of(), Map.of(), List.of())));
+            if (!factory.readExternal(plainSword).isEmpty()) {
+                throw new IllegalStateException("无外部值时不应写入容器");
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "外部值: " + e.getMessage()));
         }
 
         try {

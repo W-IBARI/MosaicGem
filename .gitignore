@@ -16,3 +16,6 @@ build/
 # 系统文件
 Thumbs.db
 .DS_Store
+
+# 构建脚本产物（build.ps1）
+target/

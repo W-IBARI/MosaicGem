@@ -89,14 +89,19 @@ public class GemService {
                     yield combo.target().clone();
                 }
                 Map<String, String> values = factory.readValues(combo.tool());
+                Map<String, String> external = factory.readExternal(combo.tool());
+                if (external.isEmpty()) {
+                    external = factory.resolveExternal(definition, values);
+                }
                 List<String> lines = resolveLines(definition, values);
-                SocketedGem socketedGem = new SocketedGem(definition.getId(), ItemFactory.newInstanceId(), values, lines);
+                SocketedGem socketedGem = new SocketedGem(definition.getId(), ItemFactory.newInstanceId(), values, external, lines);
                 List<SocketedGem> gems = new ArrayList<>(data.gems());
                 gems.add(socketedGem);
                 ItemStack preview = combo.target().clone();
                 factory.writeSocketData(preview, data.holes(), data.holeSources(), gems);
                 BuffTypeRegistry.get().rebuildAll(preview, gems, factory);
                 attributeLoreService.update(preview, gems);
+                factory.rebuildExternalValues(preview, gems);
                 factory.applySocketLore(preview, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
                 yield preview;
             }
@@ -112,6 +117,7 @@ public class GemService {
                 factory.writeSocketData(preview, data.holes(), data.holeSources(), gems);
                 BuffTypeRegistry.get().rebuildAll(preview, gems, factory);
                 attributeLoreService.update(preview, gems);
+                factory.rebuildExternalValues(preview, gems);
                 factory.applySocketLore(preview, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
                 yield preview;
             }
@@ -200,9 +206,13 @@ public class GemService {
         if (values.isEmpty()) {
             values = factory.rollRandom(definition);
         }
+        Map<String, String> external = factory.readExternal(combo.tool());
+        if (external.isEmpty()) {
+            external = factory.resolveExternal(definition, values);
+        }
         List<String> lines = resolveLines(definition, values);
 
-        SocketedGem socketedGem = new SocketedGem(definition.getId(), ItemFactory.newInstanceId(), values, lines);
+        SocketedGem socketedGem = new SocketedGem(definition.getId(), ItemFactory.newInstanceId(), values, external, lines);
         List<SocketedGem> gems = new ArrayList<>(data.gems());
         gems.add(socketedGem);
 
@@ -211,6 +221,7 @@ public class GemService {
         BuffTypeRegistry.get().rebuildAll(result, gems, factory);
         attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
+        factory.rebuildExternalValues(result, gems);
         return new OperationResult(result, null, true, configs.message("socket-success"));
     }
 
@@ -241,6 +252,7 @@ public class GemService {
         BuffTypeRegistry.get().rebuildAll(result, gems, factory);
         attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
+        factory.rebuildExternalValues(result, gems);
 
         // 宝石自身损毁判定：与拆卸器成功率无关，拆卸成功后才独立判定；
         // 命中则宝石消失（不返还），未命中正常返还。
@@ -279,7 +291,12 @@ public class GemService {
             factory.markTool(fallback, ToolType.GEM, gem.id(), gem.values());
             return fallback;
         }
-        return factory.buildGem(definition, gem.values());
+        ItemStack item = factory.buildGem(definition, gem.values());
+        if (!gem.external().isEmpty()) {
+            // 外部值优先用宝石实例保存的值，保证拆卸返还时与镶嵌时完全一致
+            factory.writeExternal(item, gem.external());
+        }
+        return item;
     }
 
     private boolean isTargetValid(ItemDefinition definition, ItemStack target) {

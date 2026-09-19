@@ -89,6 +89,8 @@ public class ItemFactory {
     private final NamespacedKey keyCount;
     private final NamespacedKey keySources;
     private final NamespacedKey keySocketLoreDetail;
+    /** 外部值容器（宝石物品上为自己的外部值；装备上为全部宝石合并后的聚合值） */
+    private final NamespacedKey keyExternal;
 
     public ItemFactory(MosaicGemPlugin plugin, ConfigManager configs) {
         this.plugin = plugin;
@@ -108,6 +110,7 @@ public class ItemFactory {
         this.keyCount = key("count");
         this.keySources = key("sources");
         this.keySocketLoreDetail = key("socketLoreDetail");
+        this.keyExternal = key("external");
     }
 
     ConfigManager configs() {
@@ -127,18 +130,18 @@ public class ItemFactory {
     // ------------------------------------------------------------------
 
     public ItemStack buildGem(GemDefinition definition, Map<String, String> values) {
-        return build(definition, ToolType.GEM, values);
+        return build(definition, ToolType.GEM, values, resolveExternal(definition, values));
     }
 
     public ItemStack buildPuncher(PuncherDefinition definition) {
-        return build(definition, ToolType.PUNCHER, null);
+        return build(definition, ToolType.PUNCHER, null, null);
     }
 
     public ItemStack buildRemover(RemoverDefinition definition) {
-        return build(definition, ToolType.REMOVER, null);
+        return build(definition, ToolType.REMOVER, null, null);
     }
 
-    private ItemStack build(ItemDefinition definition, ToolType type, Map<String, String> values) {
+    private ItemStack build(ItemDefinition definition, ToolType type, Map<String, String> values, Map<String, String> external) {
         ItemStack item = new ItemStack(definition.getMaterial());
         item.editMeta(meta -> {
             if (definition.isEnchant()) {
@@ -154,7 +157,7 @@ public class ItemFactory {
                         .toList());
             }
         });
-        markTool(item, type, definition.getId(), values);
+        markTool(item, type, definition.getId(), values, external);
         return item;
     }
 
@@ -163,11 +166,18 @@ public class ItemFactory {
     // ------------------------------------------------------------------
 
     public void markTool(ItemStack item, ToolType type, String id, Map<String, String> values) {
+        markTool(item, type, id, values, null);
+    }
+
+    public void markTool(ItemStack item, ToolType type, String id, Map<String, String> values, Map<String, String> external) {
         item.editPersistentDataContainer(pdc -> {
             pdc.set(keyItem, PersistentDataType.STRING, type.name().toLowerCase(Locale.ROOT));
             pdc.set(keyId, PersistentDataType.STRING, id);
             if (values != null && !values.isEmpty()) {
                 pdc.set(keyValues, PersistentDataType.TAG_CONTAINER, writeMap(pdc.getAdapterContext(), values));
+            }
+            if (external != null && !external.isEmpty()) {
+                pdc.set(keyExternal, PersistentDataType.TAG_CONTAINER, writeMap(pdc.getAdapterContext(), external));
             }
         });
     }
@@ -196,6 +206,129 @@ public class ItemFactory {
     }
 
     // ------------------------------------------------------------------
+    // 外部值（供外部插件取用的契约数据）
+    // ------------------------------------------------------------------
+
+    /**
+     * 读取物品上的外部值：宝石物品上为自己的外部值；装备上为全部已镶嵌宝石合并后的聚合值。
+     */
+    public Map<String, String> readExternal(ItemStack item) {
+        if (item == null) {
+            return Map.of();
+        }
+        PersistentDataContainer container = item.getPersistentDataContainer().get(keyExternal, PersistentDataType.TAG_CONTAINER);
+        return container == null ? Map.of() : readMap(container);
+    }
+
+    /**
+     * 直接写入外部值（拆卸返还宝石时用，保证数值原样返还）。
+     */
+    public void writeExternal(ItemStack item, Map<String, String> external) {
+        item.editPersistentDataContainer(pdc -> {
+            if (external == null || external.isEmpty()) {
+                pdc.remove(keyExternal);
+                return;
+            }
+            pdc.set(keyExternal, PersistentDataType.TAG_CONTAINER, writeMap(pdc.getAdapterContext(), external));
+        });
+    }
+
+    /**
+     * 按宝石定义的「外部值」段求值：值名 -> 结果（保持配置顺序）。
+     * 后面的键可以引用前面已求值的键；求值失败（未知变量/语法错）时打控制台警告并跳过，
+     * 避免把未解析的 ${} 原样写进物品数据。
+     */
+    public Map<String, String> resolveExternal(GemDefinition definition, Map<String, String> values) {
+        Map<String, String> result = new LinkedHashMap<>();
+        if (definition == null) {
+            return result;
+        }
+        Map<String, String> templates = definition.getExternal();
+        if (templates.isEmpty()) {
+            return result;
+        }
+        Map<String, String> context = new LinkedHashMap<>();
+        if (values != null) {
+            context.putAll(values);
+        }
+        for (Map.Entry<String, String> entry : templates.entrySet()) {
+            String resolved;
+            try {
+                resolved = resolve(entry.getValue(), context);
+            } catch (RuntimeException e) {
+                plugin.getLogger().warning("宝石 [" + definition.getId() + "] 外部值 " + entry.getKey() + " 求值异常: " + e);
+                continue;
+            }
+            if (resolved == null || resolved.contains("${")) {
+                plugin.getLogger().warning("宝石 [" + definition.getId() + "] 外部值 " + entry.getKey()
+                        + " 无法求值（原文本: " + entry.getValue() + "），已跳过");
+                continue;
+            }
+            result.put(entry.getKey(), resolved);
+            context.put(entry.getKey(), resolved);
+        }
+        return result;
+    }
+
+    /**
+     * 重建装备上的外部值聚合容器：按镶嵌顺序遍历全部宝石的外部值，
+     * 同名键默认保留首个（first）；config.yml 的 settings.external-aggregate(-by-key) 可改为求和。
+     */
+    public void rebuildExternalValues(ItemStack item, List<SocketedGem> gems) {
+        if (item == null || item.getType().isAir()) {
+            return;
+        }
+        writeExternal(item, mergeExternalValues(gems));
+    }
+
+    /**
+     * 按聚合策略合并一组宝石的外部值（装备级聚合与占位符跳槽位合并共用）：
+     * 按传入顺序遍历，同名键默认保留首个（first），config.yml 的 settings.external-aggregate(-by-key)
+     * 为 sum 时数值相加（小数位取参与求和者的最大位数），非数值退化为 first。
+     */
+    public Map<String, String> mergeExternalValues(List<SocketedGem> gems) {
+        Map<String, String> aggregate = new LinkedHashMap<>();
+        Map<String, Integer> decimals = new LinkedHashMap<>();
+        for (SocketedGem gem : gems) {
+            if (gem == null || gem.external().isEmpty()) {
+                continue;
+            }
+            for (Map.Entry<String, String> entry : gem.external().entrySet()) {
+                String name = entry.getKey();
+                String value = entry.getValue();
+                if (!aggregate.containsKey(name)) {
+                    aggregate.put(name, value);
+                    decimals.put(name, decimalsOf(value));
+                    continue;
+                }
+                if (!"sum".equals(configs.externalAggregateMode(name))) {
+                    continue;
+                }
+                Double first = toDouble(aggregate.get(name));
+                Double second = toDouble(value);
+                if (first == null || second == null) {
+                    continue;
+                }
+                int places = Math.max(decimals.getOrDefault(name, 0), decimalsOf(value));
+                aggregate.put(name, String.format(Locale.ROOT, "%." + places + "f", first + second));
+                decimals.put(name, places);
+            }
+        }
+        return aggregate;
+    }
+
+    private static Double toDouble(String text) {
+        if (text == null) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(text.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    // ------------------------------------------------------------------
     // 镶嵌数据读写（孔数 / 宝石列表）
     // ------------------------------------------------------------------
 
@@ -219,7 +352,12 @@ public class ItemFactory {
                 if (id == null || instanceId == null) {
                     continue;
                 }
-                gems.add(new SocketedGem(id, instanceId, readMap(gemContainer.get(keyValues, PersistentDataType.TAG_CONTAINER)), readList(gemContainer)));
+                gems.add(new SocketedGem(
+                        id,
+                        instanceId,
+                        readMap(gemContainer.get(keyValues, PersistentDataType.TAG_CONTAINER)),
+                        readMap(gemContainer.get(keyExternal, PersistentDataType.TAG_CONTAINER)),
+                        readList(gemContainer)));
             }
         }
         return new SocketData(holes, holeSources, gems);
@@ -251,6 +389,9 @@ public class ItemFactory {
                 gemContainer.set(keyUuid, PersistentDataType.STRING, gem.instanceId());
                 if (!gem.values().isEmpty()) {
                     gemContainer.set(keyValues, PersistentDataType.TAG_CONTAINER, writeMap(pdc.getAdapterContext(), gem.values()));
+                }
+                if (!gem.external().isEmpty()) {
+                    gemContainer.set(keyExternal, PersistentDataType.TAG_CONTAINER, writeMap(pdc.getAdapterContext(), gem.external()));
                 }
                 if (!gem.lines().isEmpty()) {
                     writeList(gemContainer, gem.lines());
