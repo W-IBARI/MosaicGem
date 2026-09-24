@@ -25,7 +25,8 @@ final class MythicMobSkillHandler implements BuffTypeHandler {
         List<String> result = new ArrayList<>();
         for (String line : definition.attributeLinesOf(ItemFactory.BUFF_TYPE_MM_SKILL)) {
             String name = MythicSkillLine.displayName(factory.resolve(line, gem.values()));
-            if (!name.isEmpty()) {
+            // 同一个技能可能为不同触发器各写一行（如 @USE / @RIGHTCLICK），展示时去重
+            if (!name.isEmpty() && !result.contains(name)) {
                 result.add(name);
             }
         }
