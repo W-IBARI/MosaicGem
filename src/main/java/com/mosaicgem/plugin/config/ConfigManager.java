@@ -71,6 +71,14 @@ public class ConfigManager {
                 config.getInt("settings.value-decimal-places", 2)));
     }
 
+    /**
+     * gfx_effect / food 词条的装备巡检间隔（settings.gfx-aura.scan-ticks，默认 40 刻 = 2 秒）。
+     * 每 N 刻扫描一次玩家的已装备槽位：戴上施放、摘下撤销、饱食度维持。
+     */
+    public long gfxAuraScanTicks() {
+        return Math.max(1L, config.getLong("settings.gfx-aura.scan-ticks", 40L));
+    }
+
     public void load() {
         config = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "config.yml"));
         permissions = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "permissions.yml"));
@@ -552,6 +560,7 @@ public class ConfigManager {
             case "give" -> List.of("mosaicgem.give");
             case "debug", "selftest" -> List.of("mosaicgem.debug");
             case "list" -> List.of("mosaicgem.list");
+            case "refresh" -> List.of("mosaicgem.refresh");
             default -> List.of();
         };
     }

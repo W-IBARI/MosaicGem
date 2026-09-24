@@ -28,6 +28,8 @@ public final class BuffTypeRegistry {
         register(new CeAttributeHandler());
         register(new EnchantHandler());
         register(new MythicMobSkillHandler());
+        register(new GfxEffectHandler());
+        register(new FoodHandler());
     }
 
     public static BuffTypeRegistry get() {

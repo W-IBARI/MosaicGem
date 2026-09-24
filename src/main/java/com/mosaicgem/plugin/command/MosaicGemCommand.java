@@ -32,6 +32,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
@@ -67,6 +68,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             case "give" -> give(sender, args);
             case "debug" -> debug(sender, args);
             case "list" -> list(sender, args);
+            case "refresh" -> refresh(sender, args);
             case "selftest" -> selftest(sender);
             case "lore" -> lore(sender);
             default -> {
@@ -274,6 +276,82 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 .replace("{type}", type.name().toLowerCase(Locale.ROOT))
                 .replace("{count}", String.valueOf(ids.size()))
                 .replace("{ids}", String.join(", ", ids)));
+        return true;
+    }
+
+    /**
+     * 重写玩家背包 / 装备里已镶嵌宝石物品的原版属性修饰符。
+     * 用途：宝石生效槽位规则或属性数值改动后，让【已经镶嵌好的】物品按新配置重算一遍
+     * ——属性是镶嵌那一刻写死在物品上的，不刷新就会一直保留旧写法。
+     */
+    private boolean refresh(CommandSender sender, String[] args) {
+        if (!hasPermission(sender, "refresh")) {
+            return true;
+        }
+        Player target;
+        if (args.length > 1) {
+            target = Bukkit.getPlayerExact(args[1]);
+            if (target == null) {
+                send(sender, configs.message("player-not-found").replace("{player}", args[1]));
+                return true;
+            }
+        } else if (sender instanceof Player player) {
+            target = player;
+        } else {
+            send(sender, configs.message("refresh-usage"));
+            return true;
+        }
+
+        int changed = 0;
+        PlayerInventory inventory = target.getInventory();
+        for (int i = 0; i < 36; i++) {
+            ItemStack item = inventory.getItem(i);
+            if (refreshVanillaAttributes(item)) {
+                inventory.setItem(i, item);
+                changed++;
+            }
+        }
+        ItemStack[] armor = inventory.getArmorContents();
+        for (int i = 0; i < armor.length; i++) {
+            if (refreshVanillaAttributes(armor[i])) {
+                changed++;
+            }
+        }
+        inventory.setArmorContents(armor);
+
+        ItemStack offhand = inventory.getItemInOffHand();
+        if (refreshVanillaAttributes(offhand)) {
+            inventory.setItemInOffHand(offhand);
+            changed++;
+        }
+
+        send(sender, configs.message("refresh-success")
+                .replace("{player}", target.getName())
+                .replace("{count}", String.valueOf(changed)));
+        return true;
+    }
+
+    /** 重写单件物品的原版属性修饰符；没有 vanilla_attribute 词条时返回 false（不做任何改动）。 */
+    private boolean refreshVanillaAttributes(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return false;
+        }
+        SocketData data = factory.readSocketData(item);
+        if (data.gems().isEmpty()) {
+            return false;
+        }
+        boolean hasVanilla = false;
+        for (SocketedGem gem : data.gems()) {
+            GemDefinition definition = configs.getGem(gem.id());
+            if (definition != null && !definition.attributeLinesOf(ItemFactory.BUFF_TYPE_VANILLA).isEmpty()) {
+                hasVanilla = true;
+                break;
+            }
+        }
+        if (!hasVanilla) {
+            return false;
+        }
+        factory.rebuildVanillaAttributes(item, data.gems());
         return true;
     }
 
@@ -836,7 +914,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> result = new ArrayList<>();
         if (args.length == 1) {
-            result.addAll(List.of("reload", "give", "debug", "list", "selftest", "lore"));
+            result.addAll(List.of("reload", "give", "debug", "list", "refresh", "selftest", "lore"));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
             result.addAll(configs.getGems().keySet());
             result.addAll(configs.getPunchers().keySet());
@@ -848,6 +926,10 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         } else if (args.length == 2 && args[0].equalsIgnoreCase("list")) {
             result.addAll(List.of("gem", "puncher", "remover"));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("debug")) {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                result.add(player.getName());
+            }
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("refresh")) {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 result.add(player.getName());
             }
@@ -881,6 +963,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 + configs.message("help-give") + "\n"
                 + configs.message("help-debug") + "\n"
                 + configs.message("help-list") + "\n"
+                + configs.message("help-refresh") + "\n"
                 + configs.message("help-selftest") + "\n"
                 + configs.message("help-lore"));
     }

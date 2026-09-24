@@ -59,6 +59,12 @@ public class ItemFactory {
     /** 宝石加成方式：MythicMobs 技能（镶嵌后按 MythicMobs 规则发动技能） */
     public static final String BUFF_TYPE_MM_SKILL = "mythicmobs_skill";
 
+    /** 宝石加成方式：GrimoireFX 状态效果（装备期间由插件调用 GrimoireFX 施放 / 撤销，摘下即撤销） */
+    public static final String BUFF_TYPE_GFX = "gfx_effect";
+
+    /** 宝石加成方式：饱食度维持（装备期间把食物值维持在上限内，只补不压） */
+    public static final String BUFF_TYPE_FOOD = "food";
+
     /** CrazyEnchantments 附魔 id 前缀（配置使用 ce:Wither 格式） */
     public static final String CRAZY_ENCHANT_PREFIX = "ce:";
 
@@ -865,6 +871,8 @@ public class ItemFactory {
      * - 汇总所有已镶嵌原版宝石的属性值（同属性求和）
      * - 把物品原有的同属性 ADD_NUMBER 修饰符合并进去（原样存入 PDC，宝石取下后可还原），
      *   保证 tooltip 只显示一行总值
+     * - 槽位组取自宝石自己声明的可镶嵌类型（头盔宝石只在头部生效、工具宝石只在主手生效），
+     *   没有声明时退回原生修饰符的组，都没有则维持不限制
      */
     public void rebuildVanillaAttributes(ItemStack item, List<SocketedGem> gems) {
         if (item == null || item.getType().isAir()) {
@@ -873,11 +881,14 @@ public class ItemFactory {
 
         // 1. 汇总所有原版宝石按属性 id 的总加成
         Map<String, Double> totals = new LinkedHashMap<>();
+        Map<String, org.bukkit.inventory.EquipmentSlotGroup> declaredGroups = new LinkedHashMap<>();
         for (SocketedGem gem : gems) {
             GemDefinition definition = configs.getGem(gem.id());
             if (definition == null) {
                 continue;
             }
+            org.bukkit.inventory.EquipmentSlotGroup declared =
+                    TargetMatcher.slotGroupOf(definition.getTargetType());
             for (String line : definition.attributeLinesOf(BUFF_TYPE_VANILLA)) {
                 VanillaAttribute parsed = parseVanillaAttribute(line);
                 if (parsed == null) {
@@ -891,6 +902,9 @@ public class ItemFactory {
                     continue;
                 }
                 totals.merge(parsed.id(), amount, Double::sum);
+                if (declared != null) {
+                    declaredGroups.putIfAbsent(parsed.id(), declared);
+                }
             }
         }
 
@@ -925,7 +939,8 @@ public class ItemFactory {
         for (String attributeId : totals.keySet()) {
             List<NativeEntry> natives = nativesByAttribute.remove(attributeId);
             double nativeSum = 0;
-            org.bukkit.inventory.EquipmentSlotGroup group = null;
+            // 槽位组：宝石声明的可镶嵌类型优先，原生修饰符的组兜底，都没有则不限制
+            org.bukkit.inventory.EquipmentSlotGroup group = declaredGroups.get(attributeId);
             io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay display = null;
             if (natives != null) {
                 for (NativeEntry nativeEntry : natives) {
@@ -972,8 +987,11 @@ public class ItemFactory {
             AttributeModifier modifier = new AttributeModifier(modifierKey, entry.amount(), AttributeModifier.Operation.ADD_NUMBER);
             org.bukkit.inventory.EquipmentSlotGroup group = entry.group();
             io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay display = entry.display();
-            if (group != null && display != null) {
-                builder.addModifier(attribute, modifier, group, display);
+            if (group != null) {
+                builder.addModifier(attribute, modifier, group,
+                        display != null
+                                ? display
+                                : io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay.reset());
             } else {
                 builder.addModifier(attribute, modifier);
             }

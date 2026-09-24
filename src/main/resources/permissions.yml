@@ -27,6 +27,11 @@ commands:
     default-level: op
     permissions:
       - mosaicgem.list
+  refresh:
+    # 重写已镶嵌物品的宝石属性（改生效槽位/数值后刷旧物品）
+    default-level: op
+    permissions:
+      - mosaicgem.refresh
   selftest:
     default-level: op
     permissions:

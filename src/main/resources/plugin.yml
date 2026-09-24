@@ -10,6 +10,7 @@ softdepend:
   - MythicCrucible
   - CraftEngine
   - PlaceholderAPI
+  - GrimoireFX
 authors:
   - MosaicGem
 description: 宝石镶嵌插件（打孔 / 镶嵌 / 拆卸），支持 SX-Attribute
@@ -17,7 +18,7 @@ description: 宝石镶嵌插件（打孔 / 镶嵌 / 拆卸），支持 SX-Attrib
 commands:
   mosaicgem:
     description: MosaicGem 主指令
-    usage: /mosaicgem <reload|give|debug|list|selftest>
+    usage: /mosaicgem <reload|give|debug|list|refresh|selftest>
     aliases:
       - mg
       - mgem
@@ -36,3 +37,6 @@ permissions:
   mosaicgem.list:
     default: op
     description: 查看已配置物品列表
+  mosaicgem.refresh:
+    default: op
+    description: 重写已镶嵌物品的宝石属性

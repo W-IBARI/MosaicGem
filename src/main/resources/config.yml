@@ -23,6 +23,12 @@ settings:
   # 示例：'攻击: 2' 表示带"攻击"标签的宝石一件装备最多镶嵌 2 颗。
   gem-type-limit:
     攻击: 2
+  # 装备巡检间隔（刻）：gfx_effect / food 两种词条的效果由巡检维护——
+  # 每 N 刻扫描玩家的 6 个已装备槽位（头盔/胸甲/护腿/靴子/主手/副手），
+  # 宝石进入装备槽就施放、离开就撤销（gfx_effect 走 GrimoireFX 状态；food 维持饱食度）。
+  # 默认 40 刻 = 2 秒。
+  gfx-aura:
+    scan-ticks: 40
   # 交互方式开关
   interactions:
     # 铁砧合成

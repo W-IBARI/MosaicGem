@@ -5,9 +5,12 @@ import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.listener.AnvilInteractionListener;
 import com.mosaicgem.plugin.listener.CraftingInteractionListener;
 import com.mosaicgem.plugin.listener.DragInteractionListener;
+import com.mosaicgem.plugin.listener.GfxAuraListener;
 import com.mosaicgem.plugin.listener.MythicCrucibleListener;
 import com.mosaicgem.plugin.listener.MythicSkillListener;
 import com.mosaicgem.plugin.service.GemService;
+import com.mosaicgem.plugin.service.GfxAuraService;
+import com.mosaicgem.plugin.util.GrimoireFXBridge;
 import com.mosaicgem.plugin.util.ItemFactory;
 import com.mosaicgem.plugin.util.MythicCrucibleBridge;
 import com.mosaicgem.plugin.util.MythicMobsBridge;
@@ -41,6 +44,8 @@ public final class MosaicGemPlugin extends JavaPlugin {
     private MythicMobsBridge mythicMobsBridge;
     private MythicCrucibleBridge mythicCrucibleBridge;
     private MosaicGemCommand command;
+    private GrimoireFXBridge grimoireFxBridge;
+    private GfxAuraService gfxAuraService;
 
     public static MosaicGemPlugin instance() {
         return instance;
@@ -78,6 +83,15 @@ public final class MosaicGemPlugin extends JavaPlugin {
             // 未安装 MythicCrucible 时回退到内置攻击触发
             MythicSkillExecutor skillExecutor = new MythicSkillExecutor(configManager, itemFactory, mythicMobsBridge);
             Bukkit.getPluginManager().registerEvents(new MythicSkillListener(skillExecutor), this);
+        }
+
+        // GrimoireFX 桥 + 装备巡检：gfx_effect（调用 GFX 状态效果）/ food（饱食度维持）
+        // 两种词条的效果都在玩家【装备该宝石期间】由巡检维护，戴上生效、摘下撤销
+        grimoireFxBridge = new GrimoireFXBridge(this);
+        gfxAuraService = new GfxAuraService(this, configManager, itemFactory, grimoireFxBridge);
+        Bukkit.getPluginManager().registerEvents(new GfxAuraListener(gfxAuraService), this);
+        for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+            gfxAuraService.start(player);
         }
 
         command = new MosaicGemCommand(this, configManager, itemFactory);
@@ -122,6 +136,9 @@ public final class MosaicGemPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (gfxAuraService != null) {
+            gfxAuraService.stopAll();
+        }
         getLogger().info("MosaicGem 已禁用");
     }
 
@@ -133,6 +150,9 @@ public final class MosaicGemPlugin extends JavaPlugin {
         saveResourceIfAbsent("permissions.yml");
         reloadConfig();
         configManager.load();
+        if (gfxAuraService != null) {
+            gfxAuraService.restartAll();
+        }
         getLogger().info("配置已重载，当前语言: " + configManager.language());
     }
 
