@@ -161,7 +161,11 @@ public final class MythicCrucibleBridge extends SoftDependencyBridge {
                     }
                     if (args.length >= 4 && args[1] != null) {
                         // runSkills(caster, trigger, origin, triggerEntity[, consumer])
-                        return execute(player, args[1], args.length >= 4 ? args[3] : null);
+                        execute(player, args[1], args.length >= 4 ? args[3] : null);
+                        // 故意返回 false：Crucible 在返回 true 时会 event.setCancelled(true)，
+                        // 会把原版右键行为一起吃掉（盾牌举不起来、方块交互失效）。
+                        // 技能已经在上面施放完了，这里只需要"不认领"这次交互。
+                        return false;
                     }
                     // runSkills(parentSkill, metadata)：父技能链由 Crucible/MythicMobs 内部处理，这里不重复施放
                     return null;
