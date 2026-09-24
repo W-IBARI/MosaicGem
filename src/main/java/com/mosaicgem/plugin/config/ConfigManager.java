@@ -560,7 +560,6 @@ public class ConfigManager {
             case "give" -> List.of("mosaicgem.give");
             case "debug", "selftest" -> List.of("mosaicgem.debug");
             case "list" -> List.of("mosaicgem.list");
-            case "refresh" -> List.of("mosaicgem.refresh");
             default -> List.of();
         };
     }
