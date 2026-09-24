@@ -54,9 +54,18 @@ public final class SocketReader {
     }
 
     public static double read(Player player, String valueKey, String gemId, int index, double def) {
-        ItemStack item = player.getInventory().getItemInMainHand();
+        // 主手优先，主手取不到再试副手：盾牌这类主要放副手的装备，宝石值也要能被 socketvalue 读到
+        Double value = readFromItem(player.getInventory().getItemInMainHand(), valueKey, gemId, index);
+        if (value == null) {
+            value = readFromItem(player.getInventory().getItemInOffHand(), valueKey, gemId, index);
+        }
+        return value != null ? value : def;
+    }
+
+    /** 从单件物品上按数据源优先级取值；全部数据源都取不到时返回 null。 */
+    private static Double readFromItem(ItemStack item, String valueKey, String gemId, int index) {
         if (item == null || item.getType().isAir() || !item.hasItemMeta()) {
-            return def;
+            return null;
         }
 
         Double v = readFromExternal(item, valueKey, gemId, index);
@@ -75,11 +84,7 @@ public final class SocketReader {
         if (v != null) {
             return v;
         }
-        v = readFromPdcScan(item, valueKey, index);
-        if (v != null) {
-            return v;
-        }
-        return def;
+        return readFromPdcScan(item, valueKey, index);
     }
 
     // ------------------------------------------------------------------ 数据源 1：外部值容器
