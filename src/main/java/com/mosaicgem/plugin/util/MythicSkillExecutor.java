@@ -8,6 +8,10 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * MM 技能宝石执行器：读取玩家【主手优先、副手回退】装备上的 mythicmobs_skill 宝石，
  * 对匹配当前触发器的技能调用 MythicMobs 施放。回退监听与 MythicCrucible 桥共用。
@@ -19,9 +23,17 @@ import org.bukkit.inventory.ItemStack;
  */
 public final class MythicSkillExecutor {
 
+    /**
+     * 同一玩家 + 同一技能的最小重复施放间隔（毫秒）。
+     * MythicCrucible 处理"副手右键"时，会先后抛出主手与副手两个交互事件，
+     * 两个事件都能命中宝石技能行 —— 不去重会一次右键施放两次（多一条冷却提示，效果也可能生效两次）。
+     */
+    private static final long DEDUPE_WINDOW_MS = 150L;
+
     private final ConfigManager configs;
     private final ItemFactory factory;
     private final MythicMobsBridge mythicMobs;
+    private final Map<UUID, Map<String, Long>> lastCastAt = new ConcurrentHashMap<>();
 
     public MythicSkillExecutor(ConfigManager configs, ItemFactory factory, MythicMobsBridge mythicMobs) {
         this.configs = configs;
@@ -67,11 +79,26 @@ public final class MythicSkillExecutor {
                 if (entry == null || !trigger.equals(entry.trigger())) {
                     continue;
                 }
+                if (!claimCast(player, entry.name())) {
+                    continue;
+                }
                 if (mythicMobs.castSkill(player, entry.name(), castTarget)) {
                     cast = true;
                 }
             }
         }
         return cast;
+    }
+
+    /** 去重窗口内的重复施放：返回 true = 允许这次施放（并记账）。 */
+    private boolean claimCast(Player player, String skillName) {
+        long now = System.currentTimeMillis();
+        Map<String, Long> perSkill = lastCastAt.computeIfAbsent(player.getUniqueId(), key -> new ConcurrentHashMap<>());
+        Long last = perSkill.get(skillName);
+        if (last != null && now - last < DEDUPE_WINDOW_MS) {
+            return false;
+        }
+        perSkill.put(skillName, now);
+        return true;
     }
 }
