@@ -37,6 +37,11 @@ public final class CeAttributeBridge extends SoftDependencyBridge {
 
     private Method ceInstance;        // CraftEngine.instance()
     private Method ceItemManager;     // CraftEngine.itemManager()
+    private Method ceAttributeManager;// CraftEngine.attributeManager()
+    private Method amGetAttribute;    // AttributeManager.getAttribute(Key) -> Optional
+    private Method amWeaponValue;     // AttributeManager.getWeaponAttributeValue(Item, Attribute, Context)
+    private Method optionalIsPresent; // Optional.isPresent()
+    private Method optionalGet;       // Optional.get()
     private Method ceWrap;            // ItemManager.wrap(ItemStack) -> Item
     private Method storeRead;         // ItemAttributeModifierStore.read(Item) -> List
     private Method storeWrite;        // ItemAttributeModifierStore.write(Item, List)
@@ -68,9 +73,17 @@ public final class CeAttributeBridge extends SoftDependencyBridge {
         Class<?> key = loader.loadClass("net.momirealms.craftengine.core.util.Key");
         Class<?> scope = loader.loadClass("net.momirealms.craftengine.core.attribute.modifier.AttributeModifierScope");
         Class<?> slot = loader.loadClass("net.momirealms.craftengine.core.attribute.equipment.EquipmentSlotGroup");
+        Class<?> attributeManager = loader.loadClass("net.momirealms.craftengine.core.attribute.AttributeManager");
+        Class<?> attribute = loader.loadClass("net.momirealms.craftengine.core.attribute.Attribute");
+        Class<?> context = loader.loadClass("net.momirealms.craftengine.core.plugin.context.Context");
 
         ceInstance = craftEngine.getMethod("instance");
         ceItemManager = craftEngine.getMethod("itemManager");
+        ceAttributeManager = craftEngine.getMethod("attributeManager");
+        amGetAttribute = attributeManager.getMethod("getAttribute", key);
+        amWeaponValue = attributeManager.getMethod("getWeaponAttributeValue", item, attribute, context);
+        optionalIsPresent = java.util.Optional.class.getMethod("isPresent");
+        optionalGet = java.util.Optional.class.getMethod("get");
         ceWrap = itemManager.getMethod("wrap", Object.class);
         storeRead = store.getMethod("read", item);
         storeWrite = store.getMethod("write", item, List.class);
@@ -134,6 +147,36 @@ public final class CeAttributeBridge extends SoftDependencyBridge {
         } catch (Throwable e) {
             plugin().getLogger().warning("写入 CraftEngine 属性词条失败: " + e);
             return false;
+        }
+    }
+
+    /**
+     * 读"武器上某个自定义属性的**合并值**"——物品定义（如 weapon.yml 的 60）+ 物品上的持久词条
+     * （如宝石写进去的 +33），口径与本服 lifesteal.js / CE 伤害公式完全一致。
+     *
+     * <p>⚠ 只看物品 NBT 是读不到定义值的（定义在 CE 物品配置里），所以必须走 CE 自己的 API。
+     *
+     * @param item Bukkit 物品（通常是主手武器）
+     * @param attributeId CE 属性 id，如 {@code bakamc_attributes:magic_power}
+     * @return 属性值；CraftEngine 缺失、属性不存在或读取失败时返回 {@link Double#NaN}
+     */
+    public double readWeaponAttribute(ItemStack item, String attributeId) {
+        if (!isAvailable() || item == null || item.getType().isAir()) {
+            return Double.NaN;
+        }
+        try {
+            Object engine = ceInstance.invoke(null);
+            Object manager = ceAttributeManager.invoke(engine);
+            Object optional = amGetAttribute.invoke(manager, keyOf.invoke(null, attributeId));
+            if (optional == null || !(boolean) optionalIsPresent.invoke(optional)) {
+                return Double.NaN;
+            }
+            Object attribute = optionalGet.invoke(optional);
+            Object ceItem = ceWrap.invoke(ceItemManager.invoke(engine), item);
+            return (double) amWeaponValue.invoke(manager, ceItem, attribute, (Object) null);
+        } catch (Throwable e) {
+            plugin().getLogger().warning("读取 CraftEngine 武器属性失败（" + attributeId + "）: " + e);
+            return Double.NaN;
         }
     }
 }

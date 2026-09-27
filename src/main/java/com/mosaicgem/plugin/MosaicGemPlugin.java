@@ -3,11 +3,13 @@ package com.mosaicgem.plugin;
 import com.mosaicgem.plugin.command.MosaicGemCommand;
 import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.listener.AnvilInteractionListener;
+import com.mosaicgem.plugin.listener.BloodthirstListener;
 import com.mosaicgem.plugin.listener.CraftingInteractionListener;
 import com.mosaicgem.plugin.listener.DragInteractionListener;
 import com.mosaicgem.plugin.listener.GfxAuraListener;
 import com.mosaicgem.plugin.listener.MythicCrucibleListener;
 import com.mosaicgem.plugin.listener.MythicSkillListener;
+import com.mosaicgem.plugin.service.BloodthirstService;
 import com.mosaicgem.plugin.service.GemService;
 import com.mosaicgem.plugin.service.GfxAuraService;
 import com.mosaicgem.plugin.util.GrimoireFXBridge;
@@ -46,6 +48,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
     private MosaicGemCommand command;
     private GrimoireFXBridge grimoireFxBridge;
     private GfxAuraService gfxAuraService;
+    private BloodthirstService bloodthirstService;
 
     public static MosaicGemPlugin instance() {
         return instance;
@@ -74,13 +77,15 @@ public final class MosaicGemPlugin extends JavaPlugin {
         boolean mythicMobsAvailable = mythicMobsBridge.isAvailable();
         mythicCrucibleBridge = new MythicCrucibleBridge(this, configManager, itemFactory, mythicMobsBridge);
         if (mythicCrucibleBridge.isAvailable()) {
-            // 使用 MythicCrucible 的物品技能触发管线（SWING/USE/RIGHTCLICK 等），不再自建触发监听
+            // 右键一类触发走 MythicCrucible 的物品技能管线
             Bukkit.getPluginManager().registerEvents(new MythicCrucibleListener(mythicCrucibleBridge), this);
             for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                 mythicCrucibleBridge.registerPlayer(player);
             }
-        } else if (mythicMobsAvailable) {
-            // 未安装 MythicCrucible 时回退到内置攻击触发
+        }
+        if (mythicMobsAvailable) {
+            // 攻击触发（SWING）：Crucible 没有攻击触发器，所以这条通道**始终**由本插件派发；
+            // 宝石里写 '技能 @SWING' → 玩家近战命中时施放（是否生效由 MM 侧条件决定，如 ?crouching）
             MythicSkillExecutor skillExecutor = new MythicSkillExecutor(configManager, itemFactory, mythicMobsBridge);
             Bukkit.getPluginManager().registerEvents(new MythicSkillListener(skillExecutor), this);
         }
@@ -93,6 +98,11 @@ public final class MosaicGemPlugin extends JavaPlugin {
         for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
             gfxAuraService.start(player);
         }
+
+        // 渴血宝石：MM 侧机制 bloodthirst 只负责开窗口，吸血/溢出转吸收在伤害事件里结算
+        // （必须在 MONITOR 读最终伤害，CE 的属性伤害结算在它之前完成）
+        bloodthirstService = new BloodthirstService(this);
+        Bukkit.getPluginManager().registerEvents(new BloodthirstListener(this, bloodthirstService), this);
 
         command = new MosaicGemCommand(this, configManager, itemFactory);
         PluginCommand pluginCommand = getCommand("mosaicgem");
@@ -139,7 +149,20 @@ public final class MosaicGemPlugin extends JavaPlugin {
         if (gfxAuraService != null) {
             gfxAuraService.stopAll();
         }
+        if (bloodthirstService != null) {
+            bloodthirstService.clearAll();
+        }
         getLogger().info("MosaicGem 已禁用");
+    }
+
+    /** 渴血宝石的吸血窗口/吸收池（由 hook.mm.MythicMechanicBridge 的 bloodthirst 机制写入）。 */
+    public BloodthirstService bloodthirst() {
+        return bloodthirstService;
+    }
+
+    /** CE 属性桥接（读主手武器的主属性、写宝石词条；CraftEngine 缺失时 isAvailable() 为 false）。 */
+    public com.mosaicgem.plugin.util.CeAttributeBridge ceAttributes() {
+        return itemFactory == null ? null : itemFactory.ceAttributes();
     }
 
     public void reloadConfigs() {

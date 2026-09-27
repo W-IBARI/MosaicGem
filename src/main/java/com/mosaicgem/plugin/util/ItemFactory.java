@@ -127,7 +127,8 @@ public class ItemFactory {
         return crazyEnchantBridge;
     }
 
-    CeAttributeBridge ceAttributes() {
+    /** CE 属性桥接（读写 CraftEngine 自定义属性；CraftEngine 缺失时 isAvailable() 为 false） */
+    public CeAttributeBridge ceAttributes() {
         return ceAttributeBridge;
     }
 
