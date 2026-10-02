@@ -77,15 +77,15 @@ public final class MosaicGemPlugin extends JavaPlugin {
         boolean mythicMobsAvailable = mythicMobsBridge.isAvailable();
         mythicCrucibleBridge = new MythicCrucibleBridge(this, configManager, itemFactory, mythicMobsBridge);
         if (mythicCrucibleBridge.isAvailable()) {
-            // 右键一类触发走 MythicCrucible 的物品技能管线
+            // 物品技能触发统一走 MythicCrucible 的物品技能管线（SWING / USE / RIGHTCLICK 等）。
+            // ⚠ SWING 也由 Crucible 派发（挥动即触发，命中与否都会走）——
+            //   所以这里**不能**再叠一个内置攻击派发，否则"潜行 + 攻击命中"会一次施放两遍（踩过）
             Bukkit.getPluginManager().registerEvents(new MythicCrucibleListener(mythicCrucibleBridge), this);
             for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                 mythicCrucibleBridge.registerPlayer(player);
             }
-        }
-        if (mythicMobsAvailable) {
-            // 攻击触发（SWING）：Crucible 没有攻击触发器，所以这条通道**始终**由本插件派发；
-            // 宝石里写 '技能 @SWING' → 玩家近战命中时施放（是否生效由 MM 侧条件决定，如 ?crouching）
+        } else if (mythicMobsAvailable) {
+            // 没装 MythicCrucible 时的兜底：由本插件在近战命中时派发 SWING
             MythicSkillExecutor skillExecutor = new MythicSkillExecutor(configManager, itemFactory, mythicMobsBridge);
             Bukkit.getPluginManager().registerEvents(new MythicSkillListener(skillExecutor), this);
         }

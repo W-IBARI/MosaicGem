@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.mosaicgem"
-version = "1.1.4"
+version = "1.5.1"
 description = "MosaicGem - Folia 26.x (26.1+) server plugin"
 
 repositories {

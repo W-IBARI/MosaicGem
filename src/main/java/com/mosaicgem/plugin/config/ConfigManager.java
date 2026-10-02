@@ -72,11 +72,11 @@ public class ConfigManager {
     }
 
     /**
-     * gfx_effect / food 词条的装备巡检间隔（settings.gfx-aura.scan-ticks，默认 40 刻 = 2 秒）。
-     * 每 N 刻扫描一次玩家的已装备槽位：戴上施放、摘下撤销、饱食度维持。
+     * 宝石常驻状态的"低频兜底扫描"间隔（settings.gfx-aura.scan-ticks，默认 800 刻 = 40 秒）。
+     * 2026-09-28 重构后常态由事件驱动（见 GfxAuraListener）；这个周期任务只用于兜底自愈。
      */
     public long gfxAuraScanTicks() {
-        return Math.max(1L, config.getLong("settings.gfx-aura.scan-ticks", 40L));
+        return Math.max(1L, config.getLong("settings.gfx-aura.scan-ticks", 800L));
     }
 
     public void load() {
